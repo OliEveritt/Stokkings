@@ -38,4 +38,3 @@ test-results/
 playwright-report/
 
 # package manager
-package-lock.json
