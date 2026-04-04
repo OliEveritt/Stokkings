@@ -1,0 +1,135 @@
+"use client";
+
+import { X, Shield, ChevronRight } from "lucide-react";
+import type { NavItem, Rates } from "@/types";
+
+interface SidebarProps {
+  items: NavItem[];
+  active: string;
+  onNav: (id: string) => void;
+  rates: Rates;
+  mobile?: boolean;
+  onClose?: () => void;
+}
+
+function SidebarContent({
+  items,
+  active,
+  onNav,
+  rates,
+  onClose,
+  showClose,
+}: {
+  items: NavItem[];
+  active: string;
+  onNav: (id: string) => void;
+  rates: Rates;
+  onClose?: () => void;
+  showClose?: boolean;
+}) {
+  return (
+    <>
+      <div className="flex items-center justify-between px-5 h-16 border-b border-gray-100">
+        <div className="flex items-center gap-2.5">
+          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center">
+            <Shield size={16} className="text-white" />
+          </div>
+          <span className="font-bold text-gray-800 text-base tracking-tight">
+            Stokkings
+          </span>
+        </div>
+        {showClose && (
+          <button
+            onClick={onClose}
+            className="p-1.5 rounded-lg hover:bg-gray-100"
+          >
+            <X size={20} className="text-gray-500" />
+          </button>
+        )}
+      </div>
+      <nav className="flex-1 overflow-y-auto py-4 px-3">
+        <p className="px-3 mb-2 text-[10px] font-semibold text-gray-400 uppercase tracking-widest">
+          Navigation
+        </p>
+        {items.map((item) => {
+          const Icon = item.icon;
+          const isActive = item.id === active;
+          return (
+            <button
+              key={item.id}
+              onClick={() => {
+                onNav(item.id);
+                onClose?.();
+              }}
+              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg mb-0.5 text-sm font-medium transition-all ${
+                isActive
+                  ? "bg-emerald-50 text-emerald-700"
+                  : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
+              }`}
+            >
+              <Icon
+                size={18}
+                className={isActive ? "text-emerald-600" : "text-gray-400"}
+              />
+              {item.label}
+              {isActive && (
+                <ChevronRight size={14} className="ml-auto text-emerald-400" />
+              )}
+            </button>
+          );
+        })}
+      </nav>
+      <div className="px-4 py-4 border-t border-gray-100">
+        <div className="bg-gradient-to-br from-emerald-50 to-teal-50 rounded-xl p-3.5">
+          <p className="text-xs font-semibold text-emerald-800 mb-1">
+            SA Interest Rates
+          </p>
+          <div className="flex justify-between text-xs text-emerald-700">
+            <span>
+              Repo: <strong>{rates.repo}%</strong>
+            </span>
+            <span>
+              Prime: <strong>{rates.prime}%</strong>
+            </span>
+          </div>
+          <p className="text-[10px] text-emerald-500 mt-1.5">
+            SARB &middot; Updated {rates.updated}
+          </p>
+        </div>
+      </div>
+    </>
+  );
+}
+
+export function Sidebar({
+  items,
+  active,
+  onNav,
+  rates,
+  mobile,
+  onClose,
+}: SidebarProps) {
+  if (mobile) {
+    return (
+      <div className="fixed inset-0 z-40 flex">
+        <div className="fixed inset-0 bg-black/30" onClick={onClose} />
+        <div className="relative w-72 max-w-[80vw] bg-white flex flex-col h-full shadow-2xl z-50 animate-slideIn">
+          <SidebarContent
+            items={items}
+            active={active}
+            onNav={onNav}
+            rates={rates}
+            onClose={onClose}
+            showClose
+          />
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="hidden lg:flex flex-col w-64 shrink-0 bg-white border-r border-gray-200 h-full">
+      <SidebarContent items={items} active={active} onNav={onNav} rates={rates} />
+    </div>
+  );
+}

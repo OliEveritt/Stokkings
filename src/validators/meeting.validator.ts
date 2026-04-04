@@ -1,0 +1,2 @@
+// Validator — pending implementation
+export {};
