@@ -1,1 +1,17 @@
-// Prisma schema — pending implementation
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model Rate {
+  id        Int      @id @default(autoincrement())
+  repo      Float
+  prime     Float
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("rates")
+}

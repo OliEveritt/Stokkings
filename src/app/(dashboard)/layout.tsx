@@ -8,7 +8,8 @@ import {
 import { Header } from "@/components/layout/Header";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { RatesBanner } from "@/components/layout/RatesBanner";
-import type { User, Notification, Rates, NavItem, Role } from "@/types";
+import { useRates } from "@/hooks/useRates";
+import type { User, Notification, NavItem, Role } from "@/types";
 
 const MOCK_USER: User = {
   name: "Thando Nkosi",
@@ -17,8 +18,6 @@ const MOCK_USER: User = {
   role: "Admin",
   group: "Umoja Savings Club",
 };
-
-const MOCK_RATES: Rates = { repo: 6.75, prime: 10.25, updated: "2026-03-26" };
 
 const MOCK_NOTIFS: Notification[] = [
   { id: 1, text: "Contribution confirmed — R500", time: "2h ago", read: false },
@@ -51,6 +50,7 @@ export default function DashboardLayout({
   children: React.ReactNode;
 }) {
   const [user] = useState<User>(MOCK_USER);
+  const { rates, loading: ratesLoading } = useRates();
   const [activePage, setActivePage] = useState("dashboard");
   const [mobileOpen, setMobileOpen] = useState(false);
   const [roleOverride, setRoleOverride] = useState<Role>(user.role);
@@ -74,7 +74,7 @@ export default function DashboardLayout({
   return (
     <AuthCtx.Provider value={{ ...user, role: roleOverride }}>
       <div className="h-screen flex flex-col bg-gray-50 overflow-hidden">
-        <RatesBanner rates={MOCK_RATES} />
+        {!ratesLoading && <RatesBanner rates={rates} />}
         <Header
           user={user}
           groupName={user.group}
@@ -89,14 +89,14 @@ export default function DashboardLayout({
             items={visibleNav}
             active={activePage}
             onNav={handleNav}
-            rates={MOCK_RATES}
+            rates={rates}
           />
           {mobileOpen && (
             <Sidebar
               items={visibleNav}
               active={activePage}
               onNav={handleNav}
-              rates={MOCK_RATES}
+              rates={rates}
               mobile
               onClose={() => setMobileOpen(false)}
             />
