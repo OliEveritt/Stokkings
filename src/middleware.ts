@@ -1,14 +1,20 @@
-// src/middleware.ts
-import { NextResponse } from 'next/server';
-import type { NextRequest } from 'next/server';
+import { NextResponse, type NextRequest } from 'next/server';
+import { createClient } from '@/utils/supabase/middleware';
 
-export function middleware(request: NextRequest) {
-  const { pathname } = request.nextUrl;
+export async function middleware(request: NextRequest) {
+  const { supabase, response } = createClient(request);
   
-  // If hitting the root, send to dashboard
-  if (pathname === '/') {
-    return NextResponse.redirect(new URL('/dashboard', request.url));
+  // Verify if Thabo is actually logged in
+  const { data: { user } } = await supabase.auth.getUser();
+
+  // If he's hitting /dashboard but isn't logged in, bounce him to login
+  if (request.nextUrl.pathname.startsWith('/dashboard') && !user) {
+    return NextResponse.redirect(new URL('/login', request.url));
   }
-  
-  return NextResponse.next();
+
+  return response;
 }
+
+export const config = {
+  matcher: ['/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)'],
+};

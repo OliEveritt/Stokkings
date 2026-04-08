@@ -11,7 +11,7 @@ interface Mandate {
 }
 
 interface HeaderProps {
-  user: User & { group_id?: number }; // Ensure type consistency for the check
+  user: User & { group_id?: number };
   groupName: string;
   activeLabel: string;
   notifications: Notification[];
@@ -28,12 +28,19 @@ export default function Header({
   activeLabel,
   notifications,
   roleOverride,
-  mandates = [], // 1. Added a default value fallback here
+  mandates = [],
   onMandateSwitch,
   onRoleChange,
   onOpenMobileSidebar,
 }: HeaderProps) {
-  const unreadCount = notifications.filter(n => !n.read).length;
+  
+  // LOGOUT CONFIRMATION: Standard security UX for finance apps
+  const handleLogout = async () => {
+    const isConfirmed = window.confirm("Are you sure you want to sign out?");
+    if (isConfirmed) {
+      await logout();
+    }
+  };
 
   return (
     <header className="h-16 bg-white border-b border-gray-200 flex items-center justify-between px-4 lg:px-8 shrink-0 shadow-sm relative z-30">
@@ -43,7 +50,7 @@ export default function Header({
         </button>
         
         <div className="flex flex-col">
-          <h1 className="text-sm font-medium text-gray-500 leading-none mb-1">{activeLabel}</h1>
+          <h1 className="text-sm font-medium text-gray-500 leading-none mb-1 uppercase tracking-wider text-[10px]">{activeLabel}</h1>
           <div className="relative group cursor-pointer">
             <div className="flex items-center gap-1.5 text-emerald-600">
               <Building2 size={14} />
@@ -51,11 +58,10 @@ export default function Header({
               <ChevronDown size={14} className="group-hover:translate-y-0.5 transition-transform" />
             </div>
 
-            {/* DYNAMIC DROPDOWN */}
+            {/* DYNAMIC MANDATE SWITCHER */}
             <div className="absolute top-full left-0 mt-2 w-64 bg-white border border-gray-100 rounded-xl shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all p-2 z-50">
               <p className="text-[10px] font-bold text-gray-400 uppercase px-3 py-2 tracking-widest">Switch Mandate</p>
               
-              {/* 2. Used optional chaining and fallback for total liquidity */}
               {mandates?.length > 0 ? (
                 mandates.map((m) => (
                   <button 
@@ -78,7 +84,6 @@ export default function Header({
       </div>
 
       <div className="flex items-center gap-2 sm:gap-6">
-        {/* ... Identical User Identity Section ... */}
         <div className="flex items-center gap-4 pl-4 border-l border-gray-100">
           <div className="text-right hidden sm:block">
             <p className="text-sm font-bold text-gray-900 leading-none">{user.name}</p>
@@ -87,7 +92,12 @@ export default function Header({
           <div className="w-9 h-9 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-700 border border-emerald-200 shadow-sm">
             <UserIcon size={18} />
           </div>
-          <button onClick={() => logout()} className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg">
+          
+          <button 
+            onClick={handleLogout} 
+            title="Sign Out"
+            className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all"
+          >
             <LogOut size={18} />
           </button>
         </div>
