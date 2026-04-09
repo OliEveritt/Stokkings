@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useAuth } from "@/app/(dashboard)/layout";
+import { createClient } from "@/utils/supabase/client";
 
 interface Contribution {
   id: number;
@@ -12,22 +12,25 @@ interface Contribution {
 }
 
 export default function ContributionsPage() {
-  const auth = useAuth();
   const [contributions, setContributions] = useState<Contribution[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
   useEffect(() => {
     const fetchContributions = async () => {
-      if (!auth?.user_id) {
-        setLoading(false);
-        return;
-      }
-
       try {
+        const supabase = createClient();
+        const { data: { user } } = await supabase.auth.getUser();
+        
+        if (!user) {
+          setLoading(false);
+          setError("Please log in to view your contributions.");
+          return;
+        }
+
         const response = await fetch(`http://localhost:3001/api/contributions/my-contributions`, {
           headers: {
-            "x-auth-id": auth.external_auth_id || `auth0|${auth.user_id}`,
+            "x-auth-id": user.id,
           },
         });
 
@@ -46,7 +49,7 @@ export default function ContributionsPage() {
     };
 
     fetchContributions();
-  }, [auth]);
+  }, []);
 
   const getStatusColor = (status: string) => {
     switch (status?.toLowerCase()) {
