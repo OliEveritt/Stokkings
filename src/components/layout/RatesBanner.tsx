@@ -1,18 +1,21 @@
-import { TrendingUp } from "lucide-react";
+"use client";
+
 import type { Rates } from "@/types";
 
-export function RatesBanner({ rates }: { rates: Rates }) {
+export default function RatesBanner({ rates }: { rates: Rates }) {
   return (
-    <div className="flex items-center gap-4 px-4 py-2 bg-emerald-50 border-b border-emerald-100 text-xs text-emerald-800">
-      <TrendingUp size={14} className="shrink-0" />
-      <span>
-        Repo Rate: <strong>{rates.repo}%</strong>
-      </span>
-      <span className="text-emerald-400">|</span>
-      <span>
-        Prime Rate: <strong>{rates.prime}%</strong>
-      </span>
-      <span className="ml-auto text-emerald-500">Updated {rates.updated}</span>
+    <div className="bg-emerald-900 text-white py-2 px-4 text-xs font-medium flex justify-center gap-6 shadow-inner">
+      <div className="flex items-center gap-2">
+        <span className="text-emerald-400 font-bold uppercase tracking-wider">SARB Repo Rate:</span>
+        <span>{rates.repo}%</span>
+      </div>
+      <div className="flex items-center gap-2 border-l border-emerald-800 pl-6">
+        <span className="text-emerald-400 font-bold uppercase tracking-wider">Prime Lending:</span>
+        <span>{rates.prime}%</span>
+      </div>
+      <div className="hidden sm:block border-l border-emerald-800 pl-6 text-emerald-500">
+        As of {rates.updated}
+      </div>
     </div>
   );
 }

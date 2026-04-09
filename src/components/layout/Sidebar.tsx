@@ -29,9 +29,10 @@ function SidebarContent({
 }) {
   return (
     <>
+      {/* 1. Header & Logo Section */}
       <div className="flex items-center justify-between px-5 h-16 border-b border-gray-100">
         <div className="flex items-center gap-2.5">
-          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center">
+          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center shadow-sm">
             <Shield size={16} className="text-white" />
           </div>
           <span className="font-bold text-gray-800 text-base tracking-tight">
@@ -39,58 +40,52 @@ function SidebarContent({
           </span>
         </div>
         {showClose && (
-          <button
-            onClick={onClose}
-            className="p-1.5 rounded-lg hover:bg-gray-100"
-          >
+          <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-gray-100">
             <X size={20} className="text-gray-500" />
           </button>
         )}
       </div>
+
+      {/* 2. Primary Navigation Ledger */}
       <nav className="flex-1 overflow-y-auto py-4 px-3">
         <p className="px-3 mb-2 text-[10px] font-semibold text-gray-400 uppercase tracking-widest">
           Navigation
         </p>
-        {items.map((item) => {
-          const Icon = item.icon;
-          const isActive = item.id === active;
-          return (
-            <button
-              key={item.id}
-              onClick={() => {
-                onNav(item.id);
-                onClose?.();
-              }}
-              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg mb-0.5 text-sm font-medium transition-all ${
-                isActive
-                  ? "bg-emerald-50 text-emerald-700"
-                  : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
-              }`}
-            >
-              <Icon
-                size={18}
-                className={isActive ? "text-emerald-600" : "text-gray-400"}
-              />
-              {item.label}
-              {isActive && (
-                <ChevronRight size={14} className="ml-auto text-emerald-400" />
-              )}
-            </button>
-          );
-        })}
+        <div className="space-y-0.5">
+          {items.map((item) => {
+            const Icon = item.icon;
+            const isActive = item.id === active;
+            return (
+              <button
+                key={item.id}
+                onClick={() => {
+                  onNav(item.id);
+                  onClose?.();
+                }}
+                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all ${
+                  isActive
+                    ? "bg-emerald-50 text-emerald-700 shadow-sm"
+                    : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
+                }`}
+              >
+                <Icon size={18} className={isActive ? "text-emerald-600" : "text-gray-400"} />
+                <span className="flex-1 text-left">{item.label}</span>
+                {isActive && <ChevronRight size={14} className="text-emerald-400" />}
+              </button>
+            );
+          })}
+        </div>
       </nav>
+
+      {/* 3. Economic Indicators (Rates) */}
       <div className="px-4 py-4 border-t border-gray-100">
-        <div className="bg-gradient-to-br from-emerald-50 to-teal-50 rounded-xl p-3.5">
+        <div className="bg-gradient-to-br from-emerald-50 to-teal-50 rounded-xl p-3.5 border border-emerald-100">
           <p className="text-xs font-semibold text-emerald-800 mb-1">
             SA Interest Rates
           </p>
           <div className="flex justify-between text-xs text-emerald-700">
-            <span>
-              Repo: <strong>{rates.repo}%</strong>
-            </span>
-            <span>
-              Prime: <strong>{rates.prime}%</strong>
-            </span>
+            <span>Repo: <strong>{rates.repo}%</strong></span>
+            <span>Prime: <strong>{rates.prime}%</strong></span>
           </div>
           <p className="text-[10px] text-emerald-500 mt-1.5">
             SARB &middot; Updated {rates.updated}
@@ -101,7 +96,8 @@ function SidebarContent({
   );
 }
 
-export function Sidebar({
+// THE MAIN EXPORT (Default)
+export default function Sidebar({
   items,
   active,
   onNav,
@@ -111,12 +107,12 @@ export function Sidebar({
 }: SidebarProps) {
   if (mobile) {
     return (
-      <div className="fixed inset-0 z-40 flex">
-        <div className="fixed inset-0 bg-black/30" onClick={onClose} />
-        <div className="relative w-72 max-w-[80vw] bg-white flex flex-col h-full shadow-2xl z-50 animate-slideIn">
+      <div className="fixed inset-0 z-50 flex lg:hidden">
+        <div className="fixed inset-0 bg-gray-900/40 backdrop-blur-sm" onClick={onClose} />
+        <div className="relative w-72 max-w-[80vw] bg-white flex flex-col h-full shadow-2xl z-50 animate-in slide-in-from-left duration-300">
           <SidebarContent
             items={items}
-            active={active}
+            active={activePage}
             onNav={onNav}
             rates={rates}
             onClose={onClose}
