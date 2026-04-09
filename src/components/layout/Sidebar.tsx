@@ -112,7 +112,7 @@ export default function Sidebar({
         <div className="relative w-72 max-w-[80vw] bg-white flex flex-col h-full shadow-2xl z-50 animate-in slide-in-from-left duration-300">
           <SidebarContent
             items={items}
-            active={activePage}
+            active={active}
             onNav={onNav}
             rates={rates}
             onClose={onClose}
