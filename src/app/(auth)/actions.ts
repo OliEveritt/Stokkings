@@ -17,7 +17,7 @@ const sqlConfig = {
 };
 
 /**
- * SIGN UP: Create Supabase Auth user and sync to Azure SQL
+ * SIGN UP: Create Supabase Auth user, Create New Group, and Link as Admin
  */
 export async function signUp(formData: FormData) {
   const email = formData.get("email") as string;
@@ -25,29 +25,54 @@ export async function signUp(formData: FormData) {
   const firstName = formData.get("firstName") as string;
   const surname = formData.get("surname") as string;
   const phone = formData.get("phone") as string;
+  const groupName = formData.get("groupName") as string;
 
   const supabase = await createClient();
 
-  // 1. Create Identity in Supabase
   const { data, error } = await supabase.auth.signUp({ email, password });
-
   if (error || !data.user) return redirect("/login?error=auth_failed");
 
-  // 2. Sync to Azure SQL Ledger
   try {
     let pool = await sql.connect(sqlConfig);
-    await pool.request()
-      .input('authId', sql.NVarChar, data.user.id)
-      .input('firstName', sql.NVarChar, firstName)
-      .input('surname', sql.NVarChar, surname)
-      .input('email', sql.NVarChar, email)
-      .input('phone', sql.NVarChar, phone)
-      .query(`
-        INSERT INTO dbo.users (external_auth_id, first_name, surname, email, phone_number)
-        VALUES (@authId, @firstName, @surname, @email, @phone)
-      `); // <--- Cleaned: removed the cite tag
+    const transaction = new sql.Transaction(pool);
+    await transaction.begin();
+
+    try {
+      // A. Create User
+      await transaction.request()
+        .input('authId', sql.NVarChar, data.user.id)
+        .input('firstName', sql.NVarChar, firstName)
+        .input('surname', sql.NVarChar, surname)
+        .input('email', sql.NVarChar, email)
+        .input('phone', sql.NVarChar, phone)
+        .query(`INSERT INTO dbo.users (external_auth_id, first_name, surname, email, phone_number)
+                VALUES (@authId, @firstName, @surname, @email, @phone)`);
+
+      // B. Create Group
+      const groupRes = await transaction.request()
+        .input('groupName', sql.NVarChar, groupName)
+        .query(`INSERT INTO dbo.groups (group_name, created_at)
+                OUTPUT INSERTED.id
+                VALUES (@groupName, GETDATE())`);
+      
+      const newGroupId = groupRes.recordset[0].id;
+
+      // C. Create Membership (Role 1 = Admin)
+      await transaction.request()
+        .input('userId', sql.NVarChar, data.user.id)
+        .input('groupId', sql.Int, newGroupId)
+        .input('roleId', sql.Int, 1) 
+        .query(`INSERT INTO dbo.memberships (external_auth_id, group_id, role_id, status)
+                VALUES (@userId, @groupId, @roleId, 'Active')`);
+
+      await transaction.commit();
+    } catch (innerErr) {
+      await transaction.rollback();
+      throw innerErr;
+    }
   } catch (err) {
-    console.error("SQL Sync Error:", err);
+    console.error("SQL Transaction Error:", err);
+    return redirect("/login?error=sync_failed");
   }
 
   return redirect("/dashboard");
@@ -68,33 +93,10 @@ export async function login(formData: FormData) {
 }
 
 /**
- * LOGOUT: Clear session and redirect
+ * LOGOUT: Clear session
  */
 export async function logout() {
   const supabase = await createClient();
   await supabase.auth.signOut();
   return redirect("/login");
-}
-
-export async function getUserMandates() {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-
-  if (!user) return [];
-
-  const pool = await sql.connect(sqlConfig);
-  const result = await pool.request()
-    .input('userId', sql.NVarChar, user.id)
-    .query(`
-      SELECT 
-        m.group_id, 
-        g.group_name, 
-        r.role_name 
-      FROM dbo.memberships m
-      JOIN dbo.groups g ON m.group_id = g.id
-      JOIN dbo.roles r ON m.role_id = r.id
-      WHERE m.external_auth_id = @userId AND m.status = 'Active'
-    `);
-
-  return result.recordset; // Returns [{group_name: 'Group A', role_name: 'Admin'}, ...]
 }

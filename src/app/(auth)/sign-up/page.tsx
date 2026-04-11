@@ -1,58 +1,64 @@
-import { createClient } from "@/utils/supabase/server";
+import { signUp } from "@/app/(auth)/actions";
 import Link from "next/link";
 
-export default async function Home() {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-
-  // 1. If no active session is found (User is not logged in)
-  if (!user) {
-    return (
-      <div className="flex min-h-screen flex-col items-center justify-center bg-gray-50 p-4 text-center">
-        <h1 className="text-4xl font-extrabold text-gray-900 mb-4 tracking-tight">Stokkings</h1>
-        <p className="text-gray-600 mb-8">The secure mandate ledger for your Stokvel.</p>
-        
-        <div className="flex gap-4">
-          <Link 
-            href="/login" 
-            className="px-6 py-2.5 bg-emerald-600 text-white font-bold rounded-xl hover:bg-emerald-700 transition-all shadow-lg shadow-emerald-100"
-          >
-            Login
-          </Link>
-          <Link 
-            href="/signup" 
-            className="px-6 py-2.5 bg-white text-emerald-600 font-bold rounded-xl border border-emerald-200 hover:bg-emerald-50 transition-all"
-          >
-            Register
-          </Link>
-        </div>
-      </div>
-    );
-  }
-
-  // 2. If a session is active (User is recognized)
+export default function SignUpPage() {
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center bg-gray-50 p-4">
-      <div className="max-w-md w-full bg-white rounded-2xl p-8 shadow-xl border border-gray-100 text-center">
-        <div className="w-16 h-16 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-4">
-          <span className="text-emerald-700 font-bold text-xl">
-            {user.email?.[0].toUpperCase()}
-          </span>
+    <div className="flex min-h-screen items-center justify-center bg-gray-50 p-4">
+      <div className="max-w-md w-full bg-white rounded-3xl p-8 shadow-2xl border border-gray-100">
+        <div className="text-center mb-8">
+          <h1 className="text-3xl font-black text-gray-900 mb-2">Stokkings</h1>
+          <p className="text-sm text-gray-500 font-medium italic">Join the Soweto Savings Circle</p>
         </div>
-        <h2 className="text-2xl font-bold text-gray-900 mb-1">Welcome back</h2>
-        <p className="text-gray-500 text-sm mb-6">{user.email}</p>
-        
-        <div className="space-y-3">
-          <Link 
-            href="/dashboard" 
-            className="block w-full px-6 py-3 bg-emerald-600 text-white font-bold rounded-xl hover:bg-emerald-700 transition-all"
-          >
-            Go to Dashboard
+
+        <form action={signUp} className="space-y-5">
+          {/* USER DETAILS */}
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-1">
+              <label className="text-[10px] font-bold text-gray-400 uppercase ml-1">First Name</label>
+              <input name="firstName" required className="w-full px-4 py-3 rounded-xl bg-gray-50 border border-gray-100 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 outline-none transition-all" />
+            </div>
+            <div className="space-y-1">
+              <label className="text-[10px] font-bold text-gray-400 uppercase ml-1">Surname</label>
+              <input name="surname" required className="w-full px-4 py-3 rounded-xl bg-gray-50 border border-gray-100 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 outline-none transition-all" />
+            </div>
+          </div>
+
+          <div className="space-y-1">
+            <label className="text-[10px] font-bold text-gray-400 uppercase ml-1">SA Phone Number</label>
+            <input name="phone" placeholder="082 123 4567" required className="w-full px-4 py-3 rounded-xl bg-gray-50 border border-gray-100 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 outline-none transition-all" />
+          </div>
+
+          {/* GROUP CREATION: The "Missing Link" */}
+          <div className="p-4 bg-emerald-50 rounded-2xl border border-emerald-100 space-y-1">
+            <label className="text-[10px] font-black text-emerald-700 uppercase ml-1">New Stokvel Group Name</label>
+            <input 
+              name="groupName" 
+              placeholder="e.g. Soweto Savings Circle" 
+              required 
+              className="w-full px-4 py-3 rounded-xl bg-white border border-emerald-200 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 outline-none transition-all font-bold text-emerald-900" 
+            />
+            <p className="text-[9px] text-emerald-600 italic ml-1 mt-1">As the creator, you will be assigned the <b>Admin</b> role.</p>
+          </div>
+
+          <div className="space-y-1">
+            <label className="text-[10px] font-bold text-gray-400 uppercase ml-1">Email Address</label>
+            <input name="email" type="email" required className="w-full px-4 py-3 rounded-xl bg-gray-50 border border-gray-100 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 outline-none transition-all" />
+          </div>
+
+          <div className="space-y-1">
+            <label className="text-[10px] font-bold text-gray-400 uppercase ml-1">Password</label>
+            <input name="password" type="password" required className="w-full px-4 py-3 rounded-xl bg-gray-50 border border-gray-100 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 outline-none transition-all" />
+          </div>
+
+          <button type="submit" className="w-full py-4 bg-emerald-600 text-white font-black rounded-xl hover:bg-emerald-700 transition-all shadow-lg shadow-emerald-100 active:scale-[0.98]">
+            Register Account & Group
+          </button>
+        </form>
+
+        <div className="mt-8 text-center">
+          <Link href="/login" className="text-sm font-bold text-emerald-600 hover:text-emerald-700">
+            Already have an account? Sign In
           </Link>
-          
-          <pre className="mt-4 p-4 bg-gray-50 rounded-lg text-left text-xs text-gray-400 overflow-auto max-h-40 border border-gray-100">
-            {JSON.stringify(user, null, 2)}
-          </pre>
         </div>
       </div>
     </div>
