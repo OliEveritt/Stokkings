@@ -22,18 +22,41 @@ const sqlConfig = {
 export async function signUp(formData: FormData) {
   const email = formData.get("email") as string;
   const password = formData.get("password") as string;
+  const confirmPassword = formData.get("confirmPassword") as string; // 👈 Added
   const firstName = formData.get("firstName") as string;
   const surname = formData.get("surname") as string;
   const phone = formData.get("phone") as string;
   const groupName = formData.get("groupName") as string;
 
-  const supabase = await createClient();
+  // 1. Password Match Validation
+  if (password !== confirmPassword) {
+    return redirect("/login?error=passwords_do_not_match");
+  }
 
-  const { data, error } = await supabase.auth.signUp({ email, password });
-  if (error || !data.user) return redirect("/login?error=auth_failed");
+  // 2. Phone Length Validation (Exactly 10)
+  if (phone.length !== 10) {
+    return redirect("/login?error=phone_must_be_10_digits");
+  }
+
+  const supabase = await createClient();
 
   try {
     let pool = await sql.connect(sqlConfig);
+
+    // 3. Check if Group Name already exists in SQL
+    const checkGroup = await pool.request()
+      .input('groupName', sql.NVarChar, groupName)
+      .query("SELECT id FROM dbo.groups WHERE group_name = @groupName");
+
+    if (checkGroup.recordset.length > 0) {
+      return redirect("/login?error=group_exists");
+    }
+
+    // 4. Create Identity in Supabase
+    const { data, error } = await supabase.auth.signUp({ email, password });
+    if (error || !data.user) return redirect("/login?error=auth_failed");
+
+    // 5. Atomic Sync to Azure SQL
     const transaction = new sql.Transaction(pool);
     await transaction.begin();
 
