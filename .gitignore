@@ -38,3 +38,21 @@ test-results/
 playwright-report/
 
 # package manager
+
+# Visual Studio / MSBuild
+.vs/
+*.slnx
+*.sqlite
+*.vsp
+*.essentia
+*.db
+*.vsconfig
+
+# User-specific files
+*.user
+*.userosscache
+*.sln.docstates
+
+# Database temporary files
+App_Data/*.mdf
+App_Data/*.ldf
