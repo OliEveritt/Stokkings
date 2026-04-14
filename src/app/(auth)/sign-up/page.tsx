@@ -28,7 +28,6 @@ export default function SignUpPage() {
             <input name="phone" placeholder="082 123 4567" required className="w-full px-4 py-3 rounded-xl bg-gray-50 border border-gray-100 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 outline-none transition-all" />
           </div>
 
-
           <div className="space-y-1">
             <label className="text-[10px] font-bold text-gray-400 uppercase ml-1">Email Address</label>
             <input name="email" type="email" required className="w-full px-4 py-3 rounded-xl bg-gray-50 border border-gray-100 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 outline-none transition-all" />
@@ -39,8 +38,13 @@ export default function SignUpPage() {
             <input name="password" type="password" required className="w-full px-4 py-3 rounded-xl bg-gray-50 border border-gray-100 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 outline-none transition-all" />
           </div>
 
+          <div className="space-y-1">
+            <label className="text-[10px] font-bold text-gray-400 uppercase ml-1">Confirm Password</label>
+            <input name="confirmPassword" type="password" required className="w-full px-4 py-3 rounded-xl bg-gray-50 border border-gray-100 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 outline-none transition-all" />
+          </div>
+
           <button type="submit" className="w-full py-4 bg-emerald-600 text-white font-black rounded-xl hover:bg-emerald-700 transition-all shadow-lg shadow-emerald-100 active:scale-[0.98]">
-            Register Account & Group
+            Register Account
           </button>
         </form>
 

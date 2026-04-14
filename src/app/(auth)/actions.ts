@@ -40,7 +40,7 @@ export async function signUp(formData: FormData) {
 
     let pool = await sql.connect(sqlConfig);
 
-    // 3. Create User in SQL
+    // 3. Create User in SQL only (no group)
     await pool.request()
       .input('authId', sql.NVarChar, data.user.id)
       .input('firstName', sql.NVarChar, firstName)
