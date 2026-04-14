@@ -1,12 +1,12 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { RateRepository } from "@/repositories/rate.repository";
 
-// Create a mock PrismaClient with a rate model
 const mockPrisma = {
-  rate: {
+  saRate: {
     create: vi.fn(),
     findFirst: vi.fn(),
   },
+  $transaction: vi.fn(),
 };
 
 describe("RateRepository", () => {
@@ -18,48 +18,101 @@ describe("RateRepository", () => {
   });
 
   describe("save", () => {
-    it("should persist a rate record and return it", async () => {
-      const rateData = { repo: 8.25, prime: 11.75 };
-      const savedRecord = {
-        id: 1,
-        ...rateData,
-        createdAt: new Date("2026-04-05T10:00:00Z"),
-      };
-      mockPrisma.rate.create.mockResolvedValueOnce(savedRecord);
+    it("should insert a repo and prime row in a transaction", async () => {
+      mockPrisma.$transaction.mockResolvedValueOnce([{}, {}]);
 
-      const result = await repository.save(rateData);
+      const result = await repository.save({ repo: 6.75, prime: 10.25 });
 
-      expect(mockPrisma.rate.create).toHaveBeenCalledWith({
-        data: rateData,
-      });
-      expect(result).toEqual(savedRecord);
+      expect(mockPrisma.$transaction).toHaveBeenCalledOnce();
+      const txArgs = mockPrisma.$transaction.mock.calls[0][0];
+      expect(txArgs).toHaveLength(2);
+      expect(result.repo).toBe(6.75);
+      expect(result.prime).toBe(10.25);
+      expect(result.updatedAt).toBeInstanceOf(Date);
     });
   });
 
   describe("findLatest", () => {
-    it("should return the most recent rate record", async () => {
-      const latestRecord = {
-        id: 5,
-        repo: 8.25,
-        prime: 11.75,
-        createdAt: new Date("2026-04-05T10:00:00Z"),
-      };
-      mockPrisma.rate.findFirst.mockResolvedValueOnce(latestRecord);
+    it("should query the latest repo and prime rows separately", async () => {
+      const now = new Date();
+      mockPrisma.saRate.findFirst
+        .mockResolvedValueOnce({
+          rateId: 1,
+          rateType: "repo",
+          rate: 6.75,
+          updatedAt: now,
+        })
+        .mockResolvedValueOnce({
+          rateId: 2,
+          rateType: "prime",
+          rate: 10.25,
+          updatedAt: now,
+        });
 
       const result = await repository.findLatest();
 
-      expect(mockPrisma.rate.findFirst).toHaveBeenCalledWith({
-        orderBy: { createdAt: "desc" },
+      expect(mockPrisma.saRate.findFirst).toHaveBeenCalledTimes(2);
+      expect(mockPrisma.saRate.findFirst).toHaveBeenCalledWith({
+        where: { rateType: "repo" },
+        orderBy: { updatedAt: "desc" },
       });
-      expect(result).toEqual(latestRecord);
+      expect(mockPrisma.saRate.findFirst).toHaveBeenCalledWith({
+        where: { rateType: "prime" },
+        orderBy: { updatedAt: "desc" },
+      });
+      expect(result).toEqual({ repo: 6.75, prime: 10.25, updatedAt: now });
     });
 
-    it("should return null when no rate records exist", async () => {
-      mockPrisma.rate.findFirst.mockResolvedValueOnce(null);
+    it("should return null when no repo row exists", async () => {
+      mockPrisma.saRate.findFirst
+        .mockResolvedValueOnce(null)
+        .mockResolvedValueOnce({
+          rateId: 2,
+          rateType: "prime",
+          rate: 10.25,
+          updatedAt: new Date(),
+        });
 
       const result = await repository.findLatest();
 
       expect(result).toBeNull();
+    });
+
+    it("should return null when no prime row exists", async () => {
+      mockPrisma.saRate.findFirst
+        .mockResolvedValueOnce({
+          rateId: 1,
+          rateType: "repo",
+          rate: 6.75,
+          updatedAt: new Date(),
+        })
+        .mockResolvedValueOnce(null);
+
+      const result = await repository.findLatest();
+
+      expect(result).toBeNull();
+    });
+
+    it("should use the most recent updatedAt between the two rows", async () => {
+      const older = new Date("2026-04-01T00:00:00Z");
+      const newer = new Date("2026-04-02T00:00:00Z");
+      mockPrisma.saRate.findFirst
+        .mockResolvedValueOnce({
+          rateId: 1,
+          rateType: "repo",
+          rate: 6.75,
+          updatedAt: older,
+        })
+        .mockResolvedValueOnce({
+          rateId: 2,
+          rateType: "prime",
+          rate: 10.25,
+          updatedAt: newer,
+        });
+
+      const result = await repository.findLatest();
+
+      expect(result!.updatedAt).toEqual(newer);
     });
   });
 });

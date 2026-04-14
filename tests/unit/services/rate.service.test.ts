@@ -25,7 +25,7 @@ describe("RateService", () => {
         id: 1,
         repo: 8.25,
         prime: 11.75,
-        createdAt: new Date(), // now — fresh
+        updatedAt: new Date(), // now — fresh
       };
       mockRepository.findLatest.mockResolvedValueOnce(freshRecord);
 
@@ -34,7 +34,7 @@ describe("RateService", () => {
       expect(result).toEqual({
         repo: 8.25,
         prime: 11.75,
-        updated: freshRecord.createdAt.toISOString(),
+        updated: freshRecord.updatedAt.toISOString(),
       });
       expect(mockSarbClient.fetchSarbRates).not.toHaveBeenCalled();
     });
@@ -49,7 +49,7 @@ describe("RateService", () => {
         id: 1,
         repo: 8.25,
         prime: 11.75,
-        createdAt: new Date("2026-04-05T12:00:00Z"),
+        updatedAt: new Date("2026-04-05T12:00:00Z"),
       };
       mockRepository.save.mockResolvedValueOnce(savedRecord);
 
@@ -63,7 +63,7 @@ describe("RateService", () => {
       expect(result).toEqual({
         repo: 8.25,
         prime: 11.75,
-        updated: savedRecord.createdAt.toISOString(),
+        updated: savedRecord.updatedAt.toISOString(),
       });
     });
 
@@ -74,7 +74,7 @@ describe("RateService", () => {
         id: 1,
         repo: 7.75,
         prime: 11.25,
-        createdAt: staleDate,
+        updatedAt: staleDate,
       };
       mockRepository.findLatest.mockResolvedValueOnce(staleRecord);
       mockSarbClient.fetchSarbRates.mockResolvedValueOnce({
@@ -85,7 +85,7 @@ describe("RateService", () => {
         id: 2,
         repo: 8.25,
         prime: 11.75,
-        createdAt: new Date(),
+        updatedAt: new Date(),
       };
       mockRepository.save.mockResolvedValueOnce(newRecord);
 
@@ -107,7 +107,7 @@ describe("RateService", () => {
         id: 1,
         repo: 7.75,
         prime: 11.25,
-        createdAt: staleDate,
+        updatedAt: staleDate,
       };
       mockRepository.findLatest.mockResolvedValueOnce(staleRecord);
       mockSarbClient.fetchSarbRates.mockRejectedValueOnce(

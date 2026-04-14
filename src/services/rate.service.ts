@@ -14,7 +14,7 @@ export class RateService {
   ) {}
 
   async getLatestRates(): Promise<Rates> {
-    let cached: { repo: number; prime: number; createdAt: Date } | null = null;
+    let cached: { repo: number; prime: number; updatedAt: Date } | null = null;
 
     try {
       cached = await this.repository.findLatest();
@@ -24,7 +24,7 @@ export class RateService {
 
     const isFresh =
       cached &&
-      Date.now() - cached.createdAt.getTime() < STALE_THRESHOLD_MS;
+      Date.now() - cached.updatedAt.getTime() < STALE_THRESHOLD_MS;
 
     if (cached && isFresh) {
       return this.toRates(cached);
@@ -54,11 +54,11 @@ export class RateService {
     }
   }
 
-  private toRates(record: { repo: number; prime: number; createdAt: Date }): Rates {
+  private toRates(record: { repo: number; prime: number; updatedAt: Date }): Rates {
     return {
       repo: record.repo,
       prime: record.prime,
-      updated: record.createdAt.toISOString(),
+      updated: record.updatedAt.toISOString(),
     };
   }
 }
