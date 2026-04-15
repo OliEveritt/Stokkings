@@ -3,6 +3,8 @@
 import { useState } from "react";
 import { Card } from "@/components/ui/Card";
 import { CheckCircle, AlertCircle, Loader2 } from "lucide-react";
+import { useAuth } from "../../layout";
+import { createClient } from "@/utils/supabase/client";
 
 type PayoutFrequency = "WEEKLY" | "MONTHLY" | "QUARTERLY" | "ANNUALLY";
 type FormState = "idle" | "loading" | "success" | "error";
@@ -14,6 +16,18 @@ interface FormData {
 }
 
 export default function GroupSettingsPage() {
+  const auth = useAuth();
+// Debug: Show user info on page
+const debugInfo = auth ? {
+  id: auth.id,
+  name: auth.name,
+  role: auth.role,
+  group_id: auth.group_id
+} : { message: "No auth found" };
+
+  console.log("Auth user ID:", auth?.id);
+  console.log("Full auth object:", auth);
+  
   const [form, setForm] = useState<FormData>({
     group_name: "",
     contribution_amount: "",
@@ -23,61 +37,95 @@ export default function GroupSettingsPage() {
   const [errorMessage, setErrorMessage] = useState("");
   const [createdGroup, setCreatedGroup] = useState<any>(null);
 
+  // Role check - redirect non-Admins
+  if (auth && auth.role !== "Admin") {
+    return (
+      <div className="flex items-center justify-center min-h-[50vh]">
+        <div className="text-center">
+          <div className="text-red-600 text-lg font-bold mb-2">Access Denied</div>
+          <p className="text-gray-600">Only administrators can access group settings.</p>
+        </div>
+      </div>
+    );
+  }
+
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
   ) => {
     setForm({ ...form, [e.target.name]: e.target.value });
   };
 
-  const handleSubmit = async (e: React.MouseEvent) => {
-    e.preventDefault();
+ const handleSubmit = async (e: React.MouseEvent) => {
+  e.preventDefault();
 
-    if (!form.group_name || !form.contribution_amount || !form.payout_frequency) {
-      setErrorMessage("All fields are required.");
+  if (!form.group_name || !form.contribution_amount || !form.payout_frequency) {
+    setErrorMessage("All fields are required.");
+    setState("error");
+    return;
+  }
+
+  if (isNaN(Number(form.contribution_amount)) || Number(form.contribution_amount) <= 0) {
+    setErrorMessage("Contribution amount must be a valid positive number.");
+    setState("error");
+    return;
+  }
+
+  setState("loading");
+  setErrorMessage("");
+
+  try {
+    // Use a hardcoded demo user ID for presentation
+    const demoUserId = "demo_user_123";
+    
+    // Also store the group info in localStorage for dashboard to read
+    const newGroup = {
+      group_name: form.group_name,
+      contribution_amount: Number(form.contribution_amount),
+      payout_frequency: form.payout_frequency,
+      created_at: new Date().toISOString(),
+    };
+    
+    // Store in localStorage so dashboard can show it
+    const existingGroups = JSON.parse(localStorage.getItem('demo_groups') || '[]');
+    existingGroups.push(newGroup);
+    localStorage.setItem('demo_groups', JSON.stringify(existingGroups));
+
+    const response = await fetch("/api/groups", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-auth-id": demoUserId,
+      },
+      body: JSON.stringify({
+        group_name: form.group_name,
+        contribution_amount: Number(form.contribution_amount),
+        payout_frequency: form.payout_frequency,
+      }),
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      setErrorMessage(data.error || "Something went wrong.");
       setState("error");
       return;
     }
 
-    if (isNaN(Number(form.contribution_amount)) || Number(form.contribution_amount) <= 0) {
-      setErrorMessage("Contribution amount must be a valid positive number.");
-      setState("error");
-      return;
-    }
+    setCreatedGroup(data.group);
+    setState("success");
+    setForm({ group_name: "", contribution_amount: "", payout_frequency: "MONTHLY" });
+    
+    // Reload page after 2 seconds to show new group on dashboard
+    setTimeout(() => {
+      window.location.href = "/dashboard";
+    }, 2000);
 
-    setState("loading");
-    setErrorMessage("");
+  } catch {
+    setErrorMessage("Could not connect to the server. Please try again.");
+    setState("error");
+  }
+};
 
-    try {
-      const response = await fetch("/api/groups", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "x-auth-id": "auth0|user001",
-        },
-        body: JSON.stringify({
-          group_name: form.group_name,
-          contribution_amount: Number(form.contribution_amount),
-          payout_frequency: form.payout_frequency,
-        }),
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        setErrorMessage(data.error || "Something went wrong.");
-        setState("error");
-        return;
-      }
-
-      setCreatedGroup(data.group);
-      setState("success");
-      setForm({ group_name: "", contribution_amount: "", payout_frequency: "MONTHLY" });
-
-    } catch {
-      setErrorMessage("Could not connect to the server. Please try again.");
-      setState("error");
-    }
-  };
 
   return (
     <div>

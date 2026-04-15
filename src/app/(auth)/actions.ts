@@ -17,7 +17,7 @@ const sqlConfig = {
 };
 
 /**
- * SIGN UP: Create Supabase Auth user and create user in SQL (no group creation)
+ * SIGN UP: Create Supabase Auth user, create user in SQL, and add to default group as Member
  */
 export async function signUp(formData: FormData) {
   const email = formData.get("email") as string;
@@ -40,17 +40,64 @@ export async function signUp(formData: FormData) {
 
     let pool = await sql.connect(sqlConfig);
 
-    // 3. Create User in SQL only (no group)
-    await pool.request()
-      .input('authId', sql.NVarChar, data.user.id)
-      .input('firstName', sql.NVarChar, firstName)
-      .input('surname', sql.NVarChar, surname)
-      .input('email', sql.NVarChar, email)
-      .input('phone', sql.NVarChar, phone)
-      .query(`
-        INSERT INTO dbo.users (external_auth_id, first_name, surname, email, phone_number, created_at)
-        VALUES (@authId, @firstName, @surname, @email, @phone, GETDATE())
-      `);
+    // Start a transaction
+    const transaction = new sql.Transaction(pool);
+    await transaction.begin();
+
+    try {
+      // 3. Create User in SQL
+      const userRes = await transaction.request()
+        .input('authId', sql.NVarChar, data.user.id)
+        .input('firstName', sql.NVarChar, firstName)
+        .input('surname', sql.NVarChar, surname)
+        .input('email', sql.NVarChar, email)
+        .input('phone', sql.NVarChar, phone)
+        .query(`
+          INSERT INTO dbo.users (external_auth_id, first_name, surname, email, phone_number, created_at)
+          OUTPUT INSERTED.user_id
+          VALUES (@authId, @firstName, @surname, @email, @phone, GETDATE())
+        `);
+      
+      const localUserId = userRes.recordset[0].user_id;
+
+      // 4. Get the default group ID (you can change this to your actual group ID)
+      // For now, let's get the first group in the database
+      const groupRes = await transaction.request()
+        .query(`
+          SELECT TOP 1 group_id FROM dbo.stokvel_groups
+        `);
+      
+      const defaultGroupId = groupRes.recordset[0]?.group_id;
+
+      if (defaultGroupId) {
+        // 5. Get the Member role ID (role_id for 'Member')
+        const roleRes = await transaction.request()
+          .query(`
+            SELECT role_id FROM dbo.roles WHERE role_name = 'Member'
+          `);
+        
+        const memberRoleId = roleRes.recordset[0]?.role_id;
+
+        if (memberRoleId) {
+          // 6. Add user to group_members as a Member
+          await transaction.request()
+            .input('userId', sql.Int, localUserId)
+            .input('groupId', sql.Int, defaultGroupId)
+            .input('roleId', sql.Int, memberRoleId)
+            .query(`
+              INSERT INTO dbo.group_members (user_id, group_id, role_id, join_date)
+              VALUES (@userId, @groupId, @roleId, GETDATE())
+            `);
+        }
+      }
+
+      // Commit the transaction
+      await transaction.commit();
+      
+    } catch (innerErr) {
+      await transaction.rollback();
+      throw innerErr;
+    }
       
   } catch (err: any) {
     console.error("--- DATABASE SYNC ERROR ---");

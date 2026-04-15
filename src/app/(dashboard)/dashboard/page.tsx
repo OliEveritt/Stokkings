@@ -6,6 +6,10 @@ import { getDashboardStats } from "../actions";
 
 export default function DashboardPage() {
   const auth = useAuth();
+  
+  // ADD THIS STATE HERE - right after auth
+  const [demoGroups, setDemoGroups] = useState([]);
+  
   const [stats, setStats] = useState({
     totalContributions: 0,
     memberCount: 0,
@@ -14,9 +18,14 @@ export default function DashboardPage() {
     loading: true
   });
 
-useEffect(() => {
+  // ADD THIS useEffect HERE - right after the stats useState
+  useEffect(() => {
+    const groups = JSON.parse(localStorage.getItem('demo_groups') || '[]');
+    setDemoGroups(groups);
+  }, []);
+
+  useEffect(() => {
     async function refreshLedger() {
-      // Check if auth is loaded and if group_id exists
       if (auth?.group_id) {
         try {
           setStats(prev => ({ ...prev, loading: true }));
@@ -27,19 +36,18 @@ useEffect(() => {
             memberCount: data.memberCount || 0,
             nextPayout: data.nextPayout,
             complianceRate: data.complianceRate || 0,
-            loading: false // Audit complete
+            loading: false
           });
         } catch (error) {
           console.error("Dashboard Stats Error:", error);
           setStats(prev => ({ ...prev, loading: false }));
         }
       } else if (auth) {
-        // Auth is loaded but no group_id found - stop the spinner
         setStats(prev => ({ ...prev, loading: false }));
       }
     }
     refreshLedger();
-  }, [auth, auth?.group_id]); // Watch both the auth object and the specific ID
+  }, [auth, auth?.group_id]);
   
   if (stats.loading) return <div className="p-8 text-gray-500 animate-pulse">Auditing records...</div>;
 
@@ -79,6 +87,21 @@ useEffect(() => {
           <h3 className="text-2xl font-black text-purple-900 mt-2">{stats.complianceRate}%</h3>
         </div>
       </div>
+
+      {/* ADD THIS SECTION HERE - right after the cards grid, before the closing </div> */}
+      {demoGroups.length > 0 && (
+        <div className="mt-8">
+          <h2 className="text-xl font-bold text-gray-900 mb-4">Your Groups</h2>
+          <div className="space-y-3">
+            {demoGroups.map((group, idx) => (
+              <div key={idx} className="bg-white p-4 rounded-lg border border-gray-200">
+                <p className="font-bold">{group.group_name}</p>
+                <p className="text-sm text-gray-500">R{group.contribution_amount} - {group.payout_frequency}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
