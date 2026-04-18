@@ -41,10 +41,14 @@ describe("fetchSarbRates", () => {
     await fetchSarbRates();
 
     expect(mockFetch).toHaveBeenCalledOnce();
-    const [url, options] = mockFetch.mock.calls[0];
-    expect(url).toContain("api-ninjas.com");
-    expect(url).toContain("South_Africa");
-    expect(options.headers).toHaveProperty("X-Api-Key");
+    expect(mockFetch).toHaveBeenCalledWith(
+      expect.stringContaining("api-ninjas.com"),
+      expect.objectContaining({ headers: expect.objectContaining({ "X-Api-Key": expect.any(String) }) })
+    );
+    expect(mockFetch).toHaveBeenCalledWith(
+      expect.stringContaining("South_Africa"),
+      expect.anything()
+    );
   });
 
   it("should throw when the HTTP response is not ok", async () => {
