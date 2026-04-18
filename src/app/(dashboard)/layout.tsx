@@ -9,16 +9,15 @@ import {
 import Header from "@/components/layout/Header";
 import Sidebar from "@/components/layout/Sidebar";
 import RatesBanner from "@/components/layout/RatesBanner";
-import { getActiveMembership, getAllUserMandates } from "./actions"; // Added getAllUserMandates
-import type { User, Notification, Rates, NavItem, Role } from "@/types";
+import { getActiveMembership, getAllUserMandates } from "./actions";
+import { useRates } from "@/hooks/useRates";
+import type { User, Notification, NavItem, Role } from "@/types";
 
-// --- RECONCILED TYPES ---
 interface AuthContextValue extends User {
   role: Role;
-  group_id?: number; 
+  group_id?: number;
 }
 
-// Define the Mandate shape for the switcher
 interface Mandate {
   group_id: number;
   group_name: string;
@@ -28,7 +27,6 @@ interface Mandate {
 const AuthCtx = createContext<AuthContextValue | null>(null);
 export const useAuth = () => useContext(AuthCtx);
 
-const MOCK_RATES: Rates = { repo: 8.25, prime: 11.75, updated: "2026-04-08" };
 const MOCK_NOTIFS: Notification[] = [
   { id: 1, text: "Contribution confirmed — R500", time: "2h ago", read: false },
 ];
@@ -50,21 +48,18 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     name: "Loading...",
     email: "",
     avatar: null,
-    group: "Fetching...", 
+    group: "Fetching...",
     role: "Member",
   });
-  
-  // 1. ADD MANDATES STATE: To hold Thabo's 14+ group list
   const [mandates, setMandates] = useState<Mandate[]>([]);
+  const { rates, loading: ratesLoading } = useRates();
   const [activePage, setActivePage] = useState("dashboard");
   const [mobileOpen, setMobileOpen] = useState(false);
   const [roleOverride, setRoleOverride] = useState<Role>("Member");
 
-  // 2. DYNAMIC SYNC: Pulling identity and switcher data
   useEffect(() => {
     async function syncLedger() {
       try {
-        // Fetch identity first
         const membership = await getActiveMembership();
         if (membership) {
           setUser({
@@ -73,12 +68,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             avatar: null,
             group: membership.group_name,
             group_id: membership.group_id,
-            role: membership.role_name as Role
+            role: membership.role_name as Role,
           });
           setRoleOverride(membership.role_name as Role);
         }
-
-        // Fetch the full mandate list for the dropdown
         const allMandates = await getAllUserMandates();
         setMandates(allMandates);
       } catch (err) {
@@ -88,17 +81,14 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     syncLedger();
   }, []);
 
-  // 3. MANDATE SWITCHER LOGIC: Handles the dropdown click
   const handleMandateSwitch = useCallback(async (newGroupId: number) => {
-    // We fetch specific data for the newly selected group
-    // For now, we can filter our existing mandates or re-fetch active membership
     const selected = mandates.find(m => m.group_id === newGroupId);
     if (selected) {
       setUser(prev => ({
         ...prev,
         group: selected.group_name,
         group_id: selected.group_id,
-        role: selected.role_name as Role
+        role: selected.role_name as Role,
       }));
       setRoleOverride(selected.role_name as Role);
     }
@@ -124,7 +114,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   return (
     <AuthCtx.Provider value={{ ...user, role: roleOverride }}>
       <div className="h-screen flex flex-col bg-gray-50 overflow-hidden font-sans">
-        <RatesBanner rates={MOCK_RATES} />
+        {!ratesLoading && <RatesBanner rates={rates} />}
 
         <Header
           user={user}
@@ -132,8 +122,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           activeLabel={activeLabel}
           notifications={MOCK_NOTIFS}
           roleOverride={roleOverride}
-          mandates={mandates} // Pass the real SQL list here
-          onMandateSwitch={handleMandateSwitch} // Pass the switcher function
+          mandates={mandates}
+          onMandateSwitch={handleMandateSwitch}
           onRoleChange={handleRoleChange}
           onOpenMobileSidebar={() => setMobileOpen(true)}
         />
@@ -143,7 +133,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             items={visibleNav}
             active={activePage}
             onNav={handleNav}
-            rates={MOCK_RATES}
+            rates={rates}
           />
 
           {mobileOpen && (
@@ -153,7 +143,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                 items={visibleNav}
                 active={activePage}
                 onNav={handleNav}
-                rates={MOCK_RATES}
+                rates={rates}
                 mobile
                 onClose={() => setMobileOpen(false)}
               />
