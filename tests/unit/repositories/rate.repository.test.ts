@@ -14,6 +14,7 @@ describe("RateRepository", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     repository = new RateRepository(mockPrisma as any);
   });
 

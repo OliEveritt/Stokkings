@@ -39,7 +39,7 @@ jobs:
         run: npx prisma generate
 
       - name: Run ESLint
-        run: npx eslint . --ext .ts,.tsx --max-warnings 0
+        run: ESLINT_USE_FLAT_CONFIG=false npx eslint . --ext .ts,.tsx --max-warnings 0
 
       - name: TypeScript type check
         run: npx tsc --noEmit

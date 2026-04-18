@@ -61,7 +61,7 @@ export default function MembersPage() {
       } else {
         setMessage({ type: "error", text: data.error || "Failed to update role" });
       }
-    } catch (error) {
+    } catch {
       setMessage({ type: "error", text: "Something went wrong" });
     }
   };

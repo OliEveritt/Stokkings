@@ -38,7 +38,7 @@ export async function signUp(formData: FormData) {
     const { data, error } = await supabase.auth.signUp({ email, password });
     if (error || !data.user) return redirect("/login?error=auth_failed");
 
-    let pool = await sql.connect(sqlConfig);
+    const pool = await sql.connect(sqlConfig);
 
     // Start a transaction
     const transaction = new sql.Transaction(pool);
@@ -99,9 +99,9 @@ export async function signUp(formData: FormData) {
       throw innerErr;
     }
       
-  } catch (err: any) {
+  } catch (err) {
     console.error("--- DATABASE SYNC ERROR ---");
-    console.error(err.message); 
+    console.error((err as Error).message);
     console.error("---------------------------");
     return redirect("/login?error=sync_failed");
   }

@@ -55,7 +55,7 @@ export default function DashboardPage() {
     <div className="space-y-8">
       <div>
         <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
-        <p className="text-gray-500">Welcome back! Here's a live overview of {auth?.group}.</p>
+        <p className="text-gray-500">Welcome back! Here&apos;s a live overview of {auth?.group}.</p>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">

@@ -27,6 +27,7 @@ vi.mock("@/lib/prisma", () => ({
 import { GET } from "@/app/api/rates/route";
 
 // Access the shared mock function
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 const { mockGetLatestRates } = await import("@/services/rate.service") as any;
 
 describe("GET /api/rates", () => {

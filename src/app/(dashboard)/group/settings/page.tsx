@@ -4,7 +4,6 @@ import { useState } from "react";
 import { Card } from "@/components/ui/Card";
 import { CheckCircle, AlertCircle, Loader2 } from "lucide-react";
 import { useAuth } from "@/context/auth-context";
-import { createClient } from "@/utils/supabase/client";
 
 type PayoutFrequency = "WEEKLY" | "MONTHLY" | "QUARTERLY" | "ANNUALLY";
 type FormState = "idle" | "loading" | "success" | "error";
@@ -25,7 +24,7 @@ export default function GroupSettingsPage() {
   });
   const [state, setState] = useState<FormState>("idle");
   const [errorMessage, setErrorMessage] = useState("");
-  const [createdGroup, setCreatedGroup] = useState<any>(null);
+  const [createdGroup, setCreatedGroup] = useState<Record<string, unknown> | null>(null);
 
   // Role check - redirect non-Admins
   if (auth && auth.role !== "Admin") {

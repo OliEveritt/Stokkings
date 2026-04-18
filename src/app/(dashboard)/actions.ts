@@ -17,7 +17,7 @@ export async function getActiveMembership(requestedGroupId?: number) {
   if (!user) return null;
 
   try {
-    let pool = await sql.connect(sqlConfig);
+    const pool = await sql.connect(sqlConfig);
     const request = pool.request().input('authId', sql.NVarChar, user.id);
     let query = `
       SELECT TOP 1 u.first_name, u.surname, u.email, g.group_name, g.group_id, r.role_name
@@ -34,7 +34,7 @@ export async function getActiveMembership(requestedGroupId?: number) {
     query += ` ORDER BY gm.join_date ASC`;
     const result = await request.query(query);
     return result.recordset[0] || null;
-  } catch (err) { return null; }
+  } catch { return null; }
 }
 
 export async function getAllUserMandates() {
@@ -43,7 +43,7 @@ export async function getAllUserMandates() {
   if (!user) return [];
 
   try {
-    let pool = await sql.connect(sqlConfig);
+    const pool = await sql.connect(sqlConfig);
     const result = await pool.request()
       .input('authId', sql.NVarChar, user.id)
       .query(`
@@ -55,7 +55,7 @@ export async function getAllUserMandates() {
         WHERE u.external_auth_id = @authId
       `);
     return result.recordset;
-  } catch (err) { return []; }
+  } catch { return []; }
 }
 
 export async function getDashboardStats(groupId: string | number) {
@@ -70,10 +70,14 @@ export async function getDashboardStats(groupId: string | number) {
         SELECT CAST(COUNT(CASE WHEN status = 'confirmed' THEN 1 END) AS FLOAT) / NULLIF(COUNT(*), 0) * 100 as complianceRate FROM dbo.contributions WHERE group_id = @groupId;
       `);
     return {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       totalContributions: (result.recordsets as any[][])[0][0]?.totalAmount || 0,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       memberCount: (result.recordsets as any[][])[1][0]?.memberCount || 0,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       nextPayout: (result.recordsets as any[][])[2][0]?.payout_date || null,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       complianceRate: Math.round((result.recordsets as any[][])[3][0]?.complianceRate || 0)
     };
-  } catch (err) { return { totalContributions: 0, memberCount: 0, nextPayout: null, complianceRate: 0 }; }
+  } catch { return { totalContributions: 0, memberCount: 0, nextPayout: null, complianceRate: 0 }; }
 }

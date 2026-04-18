@@ -16,6 +16,7 @@ describe("RateService", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     service = new RateService(mockRepository as any, mockSarbClient as any);
   });
 

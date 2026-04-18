@@ -1,6 +1,6 @@
 "use client";
 
-import { Bell, Menu, User as UserIcon, LogOut, ChevronDown, Building2 } from "lucide-react";
+import { Menu, User as UserIcon, LogOut, ChevronDown, Building2 } from "lucide-react";
 import { logout } from "@/app/(auth)/actions";
 import type { User, Notification, Role } from "@/types";
 
@@ -26,11 +26,11 @@ export default function Header({
   user,
   groupName,
   activeLabel,
-  notifications,
+  notifications: _notifications,
   roleOverride,
   mandates = [],
   onMandateSwitch,
-  onRoleChange,
+  onRoleChange: _onRoleChange,
   onOpenMobileSidebar,
 }: HeaderProps) {
   

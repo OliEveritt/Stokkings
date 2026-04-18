@@ -2,7 +2,16 @@
 
 import { Users, Shield, Landmark, User } from "lucide-react";
 
-export default function MemberTable({ members }: { members: any[] }) {
+interface Member {
+  user_id: number;
+  first_name: string;
+  surname: string;
+  email: string;
+  role_name: string;
+  group_id: number;
+}
+
+export default function MemberTable({ members }: { members: Member[] }) {
   const getRoleBadge = (role: string) => {
     switch (role) {
       case 'Admin': // Aligned with dbo.roles table [cite: 19]
