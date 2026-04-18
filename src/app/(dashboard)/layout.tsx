@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useCallback, createContext, useContext, useEffect } from "react";
+import { useState, useMemo, useCallback, useEffect } from "react";
 import {
   Home, Users, Wallet, Calendar, BarChart3, Settings,
   CreditCard, UserPlus, CircleDollarSign,
@@ -11,21 +11,14 @@ import Sidebar from "@/components/layout/Sidebar";
 import RatesBanner from "@/components/layout/RatesBanner";
 import { getActiveMembership, getAllUserMandates } from "./actions";
 import { useRates } from "@/hooks/useRates";
+import { AuthCtx } from "@/context/auth-context";
 import type { User, Notification, NavItem, Role } from "@/types";
-
-interface AuthContextValue extends User {
-  role: Role;
-  group_id?: number;
-}
 
 interface Mandate {
   group_id: number;
   group_name: string;
   role_name: string;
 }
-
-const AuthCtx = createContext<AuthContextValue | null>(null);
-export const useAuth = () => useContext(AuthCtx);
 
 const MOCK_NOTIFS: Notification[] = [
   { id: 1, text: "Contribution confirmed — R500", time: "2h ago", read: false },

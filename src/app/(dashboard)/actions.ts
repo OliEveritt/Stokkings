@@ -70,10 +70,10 @@ export async function getDashboardStats(groupId: string | number) {
         SELECT CAST(COUNT(CASE WHEN status = 'confirmed' THEN 1 END) AS FLOAT) / NULLIF(COUNT(*), 0) * 100 as complianceRate FROM dbo.contributions WHERE group_id = @groupId;
       `);
     return {
-      totalContributions: result.recordsets[0][0]?.totalAmount || 0,
-      memberCount: result.recordsets[1][0]?.memberCount || 0,
-      nextPayout: result.recordsets[2][0]?.payout_date || null,
-      complianceRate: Math.round(result.recordsets[3][0]?.complianceRate || 0)
+      totalContributions: (result.recordsets as any[][])[0][0]?.totalAmount || 0,
+      memberCount: (result.recordsets as any[][])[1][0]?.memberCount || 0,
+      nextPayout: (result.recordsets as any[][])[2][0]?.payout_date || null,
+      complianceRate: Math.round((result.recordsets as any[][])[3][0]?.complianceRate || 0)
     };
   } catch (err) { return { totalContributions: 0, memberCount: 0, nextPayout: null, complianceRate: 0 }; }
 }

@@ -1,14 +1,14 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useAuth } from "@/app/(dashboard)/layout";
+import { useAuth } from "@/context/auth-context";
 import { getDashboardStats } from "../actions";
 
 export default function DashboardPage() {
   const auth = useAuth();
   
   // ADD THIS STATE HERE - right after auth
-  const [demoGroups, setDemoGroups] = useState([]);
+  const [demoGroups, setDemoGroups] = useState<Array<{ group_name: string; contribution_amount: number; payout_frequency: string }>>([]);
   
   const [stats, setStats] = useState({
     totalContributions: 0,

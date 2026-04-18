@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useAuth } from "../layout";
+import { useAuth } from "@/context/auth-context";
 
 interface Member {
   user_id: number;
@@ -33,9 +33,9 @@ export default function MembersPage() {
       const data = await response.json();
       // Use a Map to deduplicate members by user_id
       const uniqueMembers = Array.from(
-        new Map(data.members?.map((m: Member) => [m.user_id, m])).values()
+        new Map<number, Member>(data.members?.map((m: Member) => [m.user_id, m])).values()
       );
-      setMembers(uniqueMembers || []);
+      setMembers(uniqueMembers);
     } catch (error) {
       console.error("Failed to fetch members:", error);
     } finally {

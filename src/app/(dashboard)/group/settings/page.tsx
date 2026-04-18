@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { Card } from "@/components/ui/Card";
 import { CheckCircle, AlertCircle, Loader2 } from "lucide-react";
-import { useAuth } from "../../layout";
+import { useAuth } from "@/context/auth-context";
 import { createClient } from "@/utils/supabase/client";
 
 type PayoutFrequency = "WEEKLY" | "MONTHLY" | "QUARTERLY" | "ANNUALLY";
@@ -17,16 +17,6 @@ interface FormData {
 
 export default function GroupSettingsPage() {
   const auth = useAuth();
-// Debug: Show user info on page
-const debugInfo = auth ? {
-  id: auth.id,
-  name: auth.name,
-  role: auth.role,
-  group_id: auth.group_id
-} : { message: "No auth found" };
-
-  console.log("Auth user ID:", auth?.id);
-  console.log("Full auth object:", auth);
   
   const [form, setForm] = useState<FormData>({
     group_name: "",
