@@ -1,7 +1,6 @@
-const API_NINJAS_URL =
-  "https://api.api-ninjas.com/v1/interestrate?country=South_Africa";
+const API_NINJAS_URL = process.env.API_NINJAS_URL ?? "";
 
-const API_KEY = process.env.API_NINJAS_KEY ?? "";
+const API_NINJAS_KEY = process.env.API_NINJAS_KEY ?? "";
 
 /** SA banks' fixed margin above repo rate */
 const PRIME_SPREAD = 3.5;
@@ -22,7 +21,7 @@ interface ApiNinjasResponse {
 
 export async function fetchSarbRates(): Promise<SarbRates> {
   const response = await fetch(API_NINJAS_URL, {
-    headers: { "X-Api-Key": API_KEY },
+    headers: { "X-Api-Key": API_NINJAS_KEY },
   });
 
   if (!response.ok) {
