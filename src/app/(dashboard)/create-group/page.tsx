@@ -55,7 +55,6 @@ export default function CreateGroupPage() {
   const validateForm = (): boolean => {
     const newErrors: FormErrors = {};
 
-    // UAT 3: Validation for missing required fields
     if (!formData.group_name.trim()) {
       newErrors.group_name = "Group name is required";
     }
@@ -106,7 +105,6 @@ export default function CreateGroupPage() {
       const data = await response.json();
 
       if (response.ok) {
-        // UAT 1: Success - redirect to dashboard
         router.push("/dashboard?success=group_created");
       } else {
         setError(data.error || "Failed to create group");
@@ -124,7 +122,6 @@ export default function CreateGroupPage() {
   ) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
-    // Clear error for this field when user starts typing
     if (errors[name as keyof FormErrors]) {
       setErrors((prev) => ({ ...prev, [name]: undefined }));
     }
@@ -146,7 +143,6 @@ export default function CreateGroupPage() {
       )}
 
       <form onSubmit={handleSubmit} className="bg-white shadow-sm rounded-lg border border-gray-200 p-6 space-y-5">
-        {/* Group Name */}
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
             Group Name <span className="text-red-500">*</span>
@@ -166,7 +162,6 @@ export default function CreateGroupPage() {
           )}
         </div>
 
-        {/* Contribution Amount */}
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
             Contribution Amount <span className="text-red-500">*</span>
@@ -191,7 +186,6 @@ export default function CreateGroupPage() {
           )}
         </div>
 
-        {/* Payout Frequency */}
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
             Payout Frequency <span className="text-red-500">*</span>
@@ -213,7 +207,6 @@ export default function CreateGroupPage() {
           )}
         </div>
 
-        {/* Payout Order */}
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
             Payout Order <span className="text-red-500">*</span>
@@ -235,7 +228,6 @@ export default function CreateGroupPage() {
           )}
         </div>
 
-        {/* Submit Button */}
         <div className="pt-4">
           <button
             type="submit"
