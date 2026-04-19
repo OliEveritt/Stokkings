@@ -17,7 +17,8 @@ const sqlConfig = {
 };
 
 /**
- * SIGN UP: Create Supabase Auth user, create user in SQL, and add to default group as Member
+ * SIGN UP: Create Supabase Auth user, create user in SQL, and assign role
+ * First user ever becomes ADMIN, subsequent users become MEMBER
  */
 export async function signUp(formData: FormData) {
   const email = formData.get("email") as string;
@@ -45,23 +46,47 @@ export async function signUp(formData: FormData) {
     await transaction.begin();
 
     try {
-      // 3. Create User in SQL
+      // 3. CHECK: Is this the first user in the system?
+      const userCountResult = await transaction.request()
+        .query(`
+          SELECT COUNT(*) as count FROM dbo.users
+        `);
+      
+      const isFirstUser = userCountResult.recordset[0].count === 0;
+      
+      // Determine role: First user gets Admin, others get Member
+      const roleToAssign = isFirstUser ? "Admin" : "Member";
+      
+      // 4. Get the role ID for the assigned role
+      const roleResult = await transaction.request()
+        .input('roleName', sql.NVarChar, roleToAssign)
+        .query(`
+          SELECT role_id FROM dbo.roles WHERE role_name = @roleName
+        `);
+      
+      const roleId = roleResult.recordset[0]?.role_id;
+      
+      if (!roleId) {
+        throw new Error(`Role '${roleToAssign}' not found in database`);
+      }
+
+      // 5. Create User in SQL
       const userRes = await transaction.request()
         .input('authId', sql.NVarChar, data.user.id)
         .input('firstName', sql.NVarChar, firstName)
         .input('surname', sql.NVarChar, surname)
         .input('email', sql.NVarChar, email)
         .input('phone', sql.NVarChar, phone)
+        .input('roleId', sql.Int, roleId)
         .query(`
-          INSERT INTO dbo.users (external_auth_id, first_name, surname, email, phone_number, created_at)
+          INSERT INTO dbo.users (external_auth_id, first_name, surname, email, phone_number, role_id, created_at)
           OUTPUT INSERTED.user_id
-          VALUES (@authId, @firstName, @surname, @email, @phone, GETDATE())
+          VALUES (@authId, @firstName, @surname, @email, @phone, @roleId, GETDATE())
         `);
       
       const localUserId = userRes.recordset[0].user_id;
 
-      // 4. Get the default group ID (you can change this to your actual group ID)
-      // For now, let's get the first group in the database
+      // 6. Get the default group ID (if any groups exist)
       const groupRes = await transaction.request()
         .query(`
           SELECT TOP 1 group_id FROM dbo.stokvel_groups
@@ -70,25 +95,15 @@ export async function signUp(formData: FormData) {
       const defaultGroupId = groupRes.recordset[0]?.group_id;
 
       if (defaultGroupId) {
-        // 5. Get the Member role ID (role_id for 'Member')
-        const roleRes = await transaction.request()
+        // 7. Add user to group_members with their role
+        await transaction.request()
+          .input('userId', sql.Int, localUserId)
+          .input('groupId', sql.Int, defaultGroupId)
+          .input('roleId', sql.Int, roleId)
           .query(`
-            SELECT role_id FROM dbo.roles WHERE role_name = 'Member'
+            INSERT INTO dbo.group_members (user_id, group_id, role_id, join_date)
+            VALUES (@userId, @groupId, @roleId, GETDATE())
           `);
-        
-        const memberRoleId = roleRes.recordset[0]?.role_id;
-
-        if (memberRoleId) {
-          // 6. Add user to group_members as a Member
-          await transaction.request()
-            .input('userId', sql.Int, localUserId)
-            .input('groupId', sql.Int, defaultGroupId)
-            .input('roleId', sql.Int, memberRoleId)
-            .query(`
-              INSERT INTO dbo.group_members (user_id, group_id, role_id, join_date)
-              VALUES (@userId, @groupId, @roleId, GETDATE())
-            `);
-        }
       }
 
       // Commit the transaction
