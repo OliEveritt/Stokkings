@@ -32,6 +32,7 @@ const NAV: NavItem[] = [
   { id: "analytics", label: "Analytics", icon: BarChart3, roles: ["Treasurer", "Admin"], path: "/analytics" },
   { id: "members", label: "Members", icon: Users, roles: ["Admin"], path: "/members" },
   { id: "contributions", label: "Contributions", icon: CreditCard, roles: ["Member", "Treasurer", "Admin"], path: "/contributions" },
+  { id: "create-group", label: "Create Group", icon: Users, roles: ["Admin"], path: "/create-group" },
   { id: "invitations", label: "Invitations", icon: UserPlus, roles: ["Admin"], path: "/invitations" },
  
 ];
