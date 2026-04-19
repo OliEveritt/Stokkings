@@ -1,24 +1,18 @@
 "use client";
 
-import { useState, useMemo, useCallback, useEffect, useContext } from "react";
+import { useState, useMemo, useCallback, useEffect } from "react";
 import {
-  Home, Users, Wallet, Calendar, BarChart3, Settings,
+  Home, Users, Calendar, BarChart3,
   CreditCard, UserPlus, CircleDollarSign,
 } from "lucide-react";
+import { useRouter } from "next/navigation";
 
 import Header from "@/components/layout/Header";
 import Sidebar from "@/components/layout/Sidebar";
 import RatesBanner from "@/components/layout/RatesBanner";
-import { getActiveMembership, getAllUserMandates } from "./actions";
 import { useRates } from "@/hooks/useRates";
-import { AuthCtx } from "@/context/auth-context";
+import { useFirebaseAuth } from "@/context/FirebaseAuthContext";
 import type { User, Notification, NavItem, Role } from "@/types";
-
-interface Mandate {
-  group_id: number;
-  group_name: string;
-  role_name: string;
-}
 
 const MOCK_NOTIFS: Notification[] = [
   { id: 1, text: "Contribution confirmed — R500", time: "2h ago", read: false },
@@ -34,59 +28,25 @@ const NAV: NavItem[] = [
   { id: "contributions", label: "Contributions", icon: CreditCard, roles: ["Member", "Treasurer", "Admin"], path: "/contributions" },
   { id: "create-group", label: "Create Group", icon: Users, roles: ["Admin"], path: "/create-group" },
   { id: "invitations", label: "Invitations", icon: UserPlus, roles: ["Admin"], path: "/invitations" },
- 
 ];
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = useState<User & { group_id?: number }>({
-    name: "Loading...",
-    email: "",
-    avatar: null,
-    group: "Fetching...",
-    role: "Member",
-  });
-  const [mandates, setMandates] = useState<Mandate[]>([]);
+  const { user: firebaseUser, loading: authLoading } = useFirebaseAuth();
+  const router = useRouter();
   const { rates, loading: ratesLoading } = useRates();
   const [activePage, setActivePage] = useState("dashboard");
   const [mobileOpen, setMobileOpen] = useState(false);
-  const [roleOverride, setRoleOverride] = useState<Role>("Member");
 
-  useEffect(() => {
-    async function syncLedger() {
-      try {
-        const membership = await getActiveMembership();
-        if (membership) {
-          setUser({
-            name: `${membership.first_name} ${membership.surname}`,
-            email: membership.email,
-            avatar: null,
-            group: membership.group_name,
-            group_id: membership.group_id,
-            role: membership.role_name as Role,
-          });
-          setRoleOverride(membership.role_name as Role);
-        }
-        const allMandates = await getAllUserMandates();
-        setMandates(allMandates);
-      } catch (err) {
-        console.error("Ledger Sync Failure:", err);
-      }
-    }
-    syncLedger();
-  }, []);
+  // All hooks must be called before any conditional returns
+  const user: User & { group_id?: number } = {
+    name: firebaseUser?.name || "Loading...",
+    email: firebaseUser?.email || "",
+    avatar: null,
+    group: "Stokvel Group",
+    role: firebaseUser?.role || "Member",
+  };
 
-  const handleMandateSwitch = useCallback(async (newGroupId: number) => {
-    const selected = mandates.find(m => m.group_id === newGroupId);
-    if (selected) {
-      setUser(prev => ({
-        ...prev,
-        group: selected.group_name,
-        group_id: selected.group_id,
-        role: selected.role_name as Role,
-      }));
-      setRoleOverride(selected.role_name as Role);
-    }
-  }, [mandates]);
+  const roleOverride = user.role as Role;
 
   const visibleNav = useMemo(
     () => NAV.filter((n) => n.roles.includes(roleOverride)),
@@ -96,63 +56,80 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const activeLabel = NAV.find((n) => n.id === activePage)?.label || "Dashboard";
 
   const handleNav = useCallback((id: string) => {
-    setActivePage(id);
-    setMobileOpen(false);
-  }, []);
+    const navItem = NAV.find(item => item.id === id);
+    if (navItem) {
+      setActivePage(id);
+      setMobileOpen(false);
+      router.push(navItem.path);
+    }
+  }, [router]);
 
   const handleRoleChange = useCallback((role: Role) => {
-    setRoleOverride(role);
-    setActivePage("dashboard");
+    console.log("Role change requested:", role);
   }, []);
 
-  return (
-    <AuthCtx.Provider value={{ ...user, role: roleOverride }}>
-      <div className="h-screen flex flex-col bg-gray-50 overflow-hidden font-sans">
-        {!ratesLoading && <RatesBanner rates={rates} />}
+  const handleMandateSwitch = useCallback(async (newGroupId: number) => {
+    console.log("Switch to group:", newGroupId);
+  }, []);
 
-        <Header
-          user={user}
-          groupName={user.group}
-          activeLabel={activeLabel}
-          notifications={MOCK_NOTIFS}
-          roleOverride={roleOverride}
-          mandates={mandates}
-          onMandateSwitch={handleMandateSwitch}
-          onRoleChange={handleRoleChange}
-          onOpenMobileSidebar={() => setMobileOpen(true)}
+  // Now conditional returns (after all hooks)
+  if (authLoading) {
+    return (
+      <div className="h-screen flex items-center justify-center">
+        <div className="text-gray-500">Loading...</div>
+      </div>
+    );
+  }
+
+  if (!firebaseUser) {
+    router.push("/login");
+    return null;
+  }
+
+  return (
+    <div className="h-screen flex flex-col bg-gray-50 overflow-hidden font-sans">
+      {!ratesLoading && <RatesBanner rates={rates} />}
+
+      <Header
+        user={user}
+        groupName={user.group}
+        activeLabel={activeLabel}
+        notifications={MOCK_NOTIFS}
+        roleOverride={roleOverride}
+        mandates={[]}
+        onMandateSwitch={handleMandateSwitch}
+        onRoleChange={handleRoleChange}
+        onOpenMobileSidebar={() => setMobileOpen(true)}
+      />
+
+      <div className="flex flex-1 overflow-hidden">
+        <Sidebar
+          items={visibleNav}
+          active={activePage}
+          onNav={handleNav}
+          rates={rates}
         />
 
-        <div className="flex flex-1 overflow-hidden">
-          <Sidebar
-            items={visibleNav}
-            active={activePage}
-            onNav={handleNav}
-            rates={rates}
-          />
+        {mobileOpen && (
+          <div className="fixed inset-0 z-50 lg:hidden">
+            <div className="fixed inset-0 bg-gray-600/50 backdrop-blur-sm" onClick={() => setMobileOpen(false)} />
+            <Sidebar
+              items={visibleNav}
+              active={activePage}
+              onNav={handleNav}
+              rates={rates}
+              mobile
+              onClose={() => setMobileOpen(false)}
+            />
+          </div>
+        )}
 
-          {mobileOpen && (
-            <div className="fixed inset-0 z-50 lg:hidden">
-              <div className="fixed inset-0 bg-gray-600/50 backdrop-blur-sm" onClick={() => setMobileOpen(false)} />
-              <Sidebar
-                items={visibleNav}
-                active={activePage}
-                onNav={handleNav}
-                rates={rates}
-                mobile
-                onClose={() => setMobileOpen(false)}
-              />
-            </div>
-          )}
-
-          <main className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8">
-            <div className="max-w-7xl mx-auto">
-              {children}
-            </div>
-          </main>
-        </div>
+        <main className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8">
+          <div className="max-w-7xl mx-auto">
+            {children}
+          </div>
+        </main>
       </div>
-    </AuthCtx.Provider>
+    </div>
   );
 }
-
-export const useAuth = () => useContext(AuthCtx);

@@ -1,83 +1,44 @@
 "use server";
 
-import { createClient } from "@/utils/supabase/server";
-import sql from "mssql";
-
-const sqlConfig = {
-  user: process.env.AZURE_SQL_USER,
-  password: process.env.AZURE_SQL_PASSWORD,
-  database: process.env.AZURE_SQL_DATABASE,
-  server: process.env.AZURE_SQL_SERVER || "",
-  options: { encrypt: true, trustServerCertificate: false }
-};
+import { auth, db } from "@/lib/firebase";
+import { doc, getDoc } from "firebase/firestore";
 
 export async function getActiveMembership(requestedGroupId?: number) {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return null;
+  // For now, return mock data until we migrate the data
+  // This keeps the dashboard working
+  const currentUser = auth.currentUser;
+  if (!currentUser) return null;
 
   try {
-    const pool = await sql.connect(sqlConfig);
-    const request = pool.request().input('authId', sql.NVarChar, user.id);
-    let query = `
-      SELECT TOP 1 u.first_name, u.surname, u.email, g.group_name, g.group_id, r.role_name
-      FROM dbo.group_members gm
-      JOIN dbo.users u ON gm.user_id = u.user_id
-      JOIN dbo.stokvel_groups g ON gm.group_id = g.group_id
-      JOIN dbo.roles r ON gm.role_id = r.role_id
-      WHERE u.external_auth_id = @authId
-    `;
-    if (requestedGroupId) {
-      request.input('gId', sql.Int, requestedGroupId);
-      query += ` AND g.group_id = @gId`;
-    }
-    query += ` ORDER BY gm.join_date ASC`;
-    const result = await request.query(query);
-    return result.recordset[0] || null;
-  } catch { return null; }
+    const userDoc = await getDoc(doc(db, 'users', currentUser.uid));
+    const userData = userDoc.data();
+    
+    if (!userData) return null;
+    
+    return {
+      first_name: userData.name?.split(' ')[0] || '',
+      surname: userData.name?.split(' ')[1] || '',
+      email: userData.email,
+      group_name: 'Default Group',
+      group_id: 1,
+      role_name: userData.role || 'Member'
+    };
+  } catch {
+    return null;
+  }
 }
 
 export async function getAllUserMandates() {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return [];
-
-  try {
-    const pool = await sql.connect(sqlConfig);
-    const result = await pool.request()
-      .input('authId', sql.NVarChar, user.id)
-      .query(`
-        SELECT g.group_id, g.group_name, r.role_name 
-        FROM dbo.group_members gm
-        JOIN dbo.stokvel_groups g ON gm.group_id = g.group_id
-        JOIN dbo.roles r ON gm.role_id = r.role_id
-        JOIN dbo.users u ON gm.user_id = u.user_id
-        WHERE u.external_auth_id = @authId
-      `);
-    return result.recordset;
-  } catch { return []; }
+  // Return empty array for now
+  return [];
 }
 
 export async function getDashboardStats(groupId: string | number) {
-  try {
-    const pool = await sql.connect(sqlConfig);
-    const result = await pool.request()
-      .input('groupId', sql.Int, Number(groupId)) 
-      .query(`
-        SELECT ISNULL(SUM(amount), 0) as totalAmount FROM dbo.contributions WHERE group_id = @groupId AND status = 'confirmed';
-        SELECT COUNT(DISTINCT user_id) as memberCount FROM dbo.group_members WHERE group_id = @groupId;
-        SELECT TOP 1 payout_date FROM dbo.payouts WHERE group_id = @groupId AND status = 'scheduled' AND payout_date >= GETDATE() ORDER BY payout_date ASC;
-        SELECT CAST(COUNT(CASE WHEN status = 'confirmed' THEN 1 END) AS FLOAT) / NULLIF(COUNT(*), 0) * 100 as complianceRate FROM dbo.contributions WHERE group_id = @groupId;
-      `);
-    return {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      totalContributions: (result.recordsets as any[][])[0][0]?.totalAmount || 0,
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      memberCount: (result.recordsets as any[][])[1][0]?.memberCount || 0,
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      nextPayout: (result.recordsets as any[][])[2][0]?.payout_date || null,
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      complianceRate: Math.round((result.recordsets as any[][])[3][0]?.complianceRate || 0)
-    };
-  } catch { return { totalContributions: 0, memberCount: 0, nextPayout: null, complianceRate: 0 }; }
+  // Return mock stats
+  return {
+    totalContributions: 0,
+    memberCount: 1,
+    nextPayout: null,
+    complianceRate: 0
+  };
 }

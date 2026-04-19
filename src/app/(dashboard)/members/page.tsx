@@ -1,41 +1,47 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useAuth } from "@/context/auth-context";
+import { useFirebaseAuth } from "@/context/FirebaseAuthContext";
+import { doc, getDoc, setDoc, collection, getDocs } from "firebase/firestore";
+import { db } from "@/lib/firebase";
 
 interface Member {
-  user_id: number;
-  first_name: string;
-  surname: string;
+  id: string;
+  name: string;
   email: string;
-  role_name: string;
-  group_id: number;
+  role: string;
+  phone?: string;
 }
 
 export default function MembersPage() {
-  const auth = useAuth();
+  const { user: currentUser, loading: authLoading } = useFirebaseAuth();
   const [members, setMembers] = useState<Member[]>([]);
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState<{ type: string; text: string } | null>(null);
 
-  // Check if current user is Admin
-  const isAdmin = auth?.role === "Admin";
+  const isAdmin = currentUser?.role === "Admin";
 
   useEffect(() => {
-    if (isAdmin) {
+    if (isAdmin && !authLoading) {
       fetchMembers();
     }
-  }, [isAdmin]);
+  }, [isAdmin, authLoading]);
 
   const fetchMembers = async () => {
     try {
-      const response = await fetch("/api/members");
-      const data = await response.json();
-      // Use a Map to deduplicate members by user_id
-      const uniqueMembers = Array.from(
-        new Map<number, Member>(data.members?.map((m: Member) => [m.user_id, m])).values()
-      );
-      setMembers(uniqueMembers);
+      const querySnapshot = await getDocs(collection(db, "users"));
+      const membersList: Member[] = [];
+      querySnapshot.forEach((doc) => {
+        const data = doc.data();
+        membersList.push({
+          id: doc.id,
+          name: data.name || "Unknown",
+          email: data.email,
+          role: data.role || "Member",
+          phone: data.phone,
+        });
+      });
+      setMembers(membersList);
     } catch (error) {
       console.error("Failed to fetch members:", error);
     } finally {
@@ -43,28 +49,24 @@ export default function MembersPage() {
     }
   };
 
-  const updateRole = async (userId: number, groupId: number, roleName: string) => {
+  const updateRole = async (userId: string, newRole: string) => {
     try {
-      const response = await fetch("/api/members/update-role", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ user_id: userId, group_id: groupId, role_name: roleName }),
-      });
-
-      const data = await response.json();
-
-      if (response.ok) {
-        setMessage({ type: "success", text: `Member role updated to ${roleName} successfully!` });
-        fetchMembers(); // Refresh the list
-        // Clear message after 3 seconds
-        setTimeout(() => setMessage(null), 3000);
-      } else {
-        setMessage({ type: "error", text: data.error || "Failed to update role" });
-      }
-    } catch {
-      setMessage({ type: "error", text: "Something went wrong" });
+      const userRef = doc(db, "users", userId);
+      await setDoc(userRef, { role: newRole }, { merge: true });
+      
+      setMessage({ type: "success", text: `Member role updated to ${newRole} successfully!` });
+      fetchMembers(); // Refresh the list
+      setTimeout(() => setMessage(null), 3000);
+    } catch (error) {
+      console.error("Error updating role:", error);
+      setMessage({ type: "error", text: "Failed to update role" });
+      setTimeout(() => setMessage(null), 3000);
     }
   };
+
+  if (authLoading) {
+    return <div className="p-8 text-gray-500">Loading...</div>;
+  }
 
   if (!isAdmin) {
     return (
@@ -108,41 +110,39 @@ export default function MembersPage() {
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
             {members.map((member) => (
-              <tr key={`member-${member.user_id}`}>
-                <td className="px-6 py-4 text-sm text-gray-900">
-                  {member.first_name} {member.surname}
-                </td>
+              <tr key={member.id}>
+                <td className="px-6 py-4 text-sm text-gray-900">{member.name}</td>
                 <td className="px-6 py-4 text-sm text-gray-500">{member.email}</td>
                 <td className="px-6 py-4">
                   <span className={`px-2 py-1 text-xs font-medium rounded-full ${
-                    member.role_name === "Admin" ? "bg-emerald-100 text-emerald-800" :
-                    member.role_name === "Treasurer" ? "bg-blue-100 text-blue-800" :
+                    member.role === "Admin" ? "bg-emerald-100 text-emerald-800" :
+                    member.role === "Treasurer" ? "bg-blue-100 text-blue-800" :
                     "bg-gray-100 text-gray-800"
                   }`}>
-                    {member.role_name}
+                    {member.role}
                   </span>
                 </td>
                 <td className="px-6 py-4">
                   <div className="flex gap-2">
-                    {member.role_name !== "Admin" && (
+                    {member.role !== "Admin" && member.id !== currentUser?.uid && (
                       <button
-                        onClick={() => updateRole(member.user_id, member.group_id, "Admin")}
+                        onClick={() => updateRole(member.id, "Admin")}
                         className="text-sm bg-emerald-500 hover:bg-emerald-600 text-white px-3 py-1 rounded-lg transition-colors"
                       >
                         Make Admin
                       </button>
                     )}
-                    {member.role_name !== "Treasurer" && member.role_name !== "Admin" && (
+                    {member.role !== "Treasurer" && member.role !== "Admin" && (
                       <button
-                        onClick={() => updateRole(member.user_id, member.group_id, "Treasurer")}
+                        onClick={() => updateRole(member.id, "Treasurer")}
                         className="text-sm bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded-lg transition-colors"
                       >
                         Make Treasurer
                       </button>
                     )}
-                    {member.role_name !== "Member" && member.role_name !== "Admin" && (
+                    {member.role !== "Member" && member.role !== "Admin" && (
                       <button
-                        onClick={() => updateRole(member.user_id, member.group_id, "Member")}
+                        onClick={() => updateRole(member.id, "Member")}
                         className="text-sm bg-gray-500 hover:bg-gray-600 text-white px-3 py-1 rounded-lg transition-colors"
                       >
                         Make Member

@@ -1,7 +1,8 @@
 "use client";
 
 import { Menu, User as UserIcon, LogOut, ChevronDown, Building2 } from "lucide-react";
-import { logout } from "@/app/(auth)/actions";
+import { useFirebaseAuth } from "@/context/FirebaseAuthContext";
+import { useRouter } from "next/navigation";
 import type { User, Notification, Role } from "@/types";
 
 interface Mandate {
@@ -16,29 +17,28 @@ interface HeaderProps {
   activeLabel: string;
   notifications: Notification[];
   roleOverride: Role;
-  mandates: Mandate[]; 
-  onMandateSwitch: (groupId: number) => void; 
+  mandates: Mandate[];
+  onMandateSwitch: (groupId: number) => void;
   onRoleChange: (role: Role) => void;
   onOpenMobileSidebar: () => void;
 }
 
-export default function Header({
-  user,
-  groupName,
-  activeLabel,
-  notifications: _notifications,
-  roleOverride,
-  mandates = [],
-  onMandateSwitch,
-  onRoleChange: _onRoleChange,
+export default function Header({ 
+  user, 
+  groupName, 
+  activeLabel, 
   onOpenMobileSidebar,
 }: HeaderProps) {
-  
-  // LOGOUT CONFIRMATION: Standard security UX for finance apps
+  const { logout } = useFirebaseAuth();
+  const router = useRouter();
+
   const handleLogout = async () => {
     const isConfirmed = window.confirm("Are you sure you want to sign out?");
     if (isConfirmed) {
       await logout();
+      localStorage.clear();
+      sessionStorage.clear();
+      window.location.href = "/login";
     }
   };
 
@@ -49,57 +49,30 @@ export default function Header({
           <Menu size={20} />
         </button>
         
-        <div className="flex flex-col">
-          <h1 className="text-sm font-medium text-gray-500 leading-none mb-1 uppercase tracking-wider text-[10px]">{activeLabel}</h1>
-          <div className="relative group cursor-pointer">
-            <div className="flex items-center gap-1.5 text-emerald-600">
-              <Building2 size={14} />
-              <span className="text-sm font-bold tracking-tight">{groupName}</span>
-              <ChevronDown size={14} className="group-hover:translate-y-0.5 transition-transform" />
-            </div>
-
-            {/* DYNAMIC MANDATE SWITCHER */}
-            <div className="absolute top-full left-0 mt-2 w-64 bg-white border border-gray-100 rounded-xl shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all p-2 z-50">
-              <p className="text-[10px] font-bold text-gray-400 uppercase px-3 py-2 tracking-widest">Switch Mandate</p>
-              
-              {mandates?.length > 0 ? (
-                mandates.map((m) => (
-                  <button 
-                    key={m.group_id}
-                    className={`w-full text-left px-3 py-2 rounded-lg text-sm mb-1 transition-colors ${
-                      m.group_id === user.group_id ? "bg-emerald-50 text-emerald-700" : "hover:bg-gray-50 text-gray-600"
-                    }`}
-                    onClick={() => onMandateSwitch(m.group_id)}
-                  >
-                    <div className="font-bold">{m.group_name}</div>
-                    <div className="text-[10px] opacity-70 italic">{m.role_name}</div>
-                  </button>
-                ))
-              ) : (
-                <p className="text-xs text-gray-400 px-3 py-2 italic">Loading mandates...</p>
-              )}
-            </div>
-          </div>
+        <div className="hidden lg:block">
+          <h1 className="text-lg font-semibold text-gray-800">{activeLabel}</h1>
+          <p className="text-xs text-gray-500">{groupName}</p>
         </div>
       </div>
 
-      <div className="flex items-center gap-2 sm:gap-6">
-        <div className="flex items-center gap-4 pl-4 border-l border-gray-100">
-          <div className="text-right hidden sm:block">
-            <p className="text-sm font-bold text-gray-900 leading-none">{user.name}</p>
-            <p className="text-[10px] text-emerald-500 font-bold uppercase mt-1">Active: {roleOverride}</p>
+      <div className="flex items-center gap-3">
+        <button
+          onClick={handleLogout}
+          className="flex items-center gap-2 px-3 py-1.5 text-sm text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+        >
+          <LogOut size={16} />
+          <span className="hidden sm:inline">Sign Out</span>
+        </button>
+        
+        <div className="flex items-center gap-2 pl-2 border-l border-gray-200">
+          <div className="w-8 h-8 rounded-full bg-emerald-100 flex items-center justify-center">
+            <UserIcon size={16} className="text-emerald-600" />
           </div>
-          <div className="w-9 h-9 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-700 border border-emerald-200 shadow-sm">
-            <UserIcon size={18} />
+          <div className="hidden md:block text-sm">
+            <p className="font-medium text-gray-800">{user.name}</p>
+            <p className="text-xs text-gray-500">{user.role}</p>
           </div>
-          
-          <button 
-            onClick={handleLogout} 
-            title="Sign Out"
-            className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all"
-          >
-            <LogOut size={18} />
-          </button>
+          <ChevronDown size={14} className="text-gray-400 hidden md:block" />
         </div>
       </div>
     </header>

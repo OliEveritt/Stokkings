@@ -1,8 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import { useAuth } from "@/context/auth-context";
+import { useFirebaseAuth } from "@/context/FirebaseAuthContext";
 import { useRouter } from "next/navigation";
+import { collection, addDoc, serverTimestamp } from "firebase/firestore";
+import { db } from "@/lib/firebase";
 
 interface FormData {
   group_name: string;
@@ -19,7 +21,7 @@ interface FormErrors {
 }
 
 export default function CreateGroupPage() {
-  const auth = useAuth();
+  const { user, loading: authLoading } = useFirebaseAuth();
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -31,8 +33,8 @@ export default function CreateGroupPage() {
   });
   const [errors, setErrors] = useState<FormErrors>({});
 
-  // UAT 2: Role guard - redirect non-admins
-  if (auth && auth.role !== "Admin") {
+  // Role guard - non-admins see access denied
+  if (!authLoading && (!user || user.role !== "Admin")) {
     return (
       <div className="flex items-center justify-center min-h-[50vh]">
         <div className="text-center">
@@ -89,29 +91,24 @@ export default function CreateGroupPage() {
     setLoading(true);
 
     try {
-      const response = await fetch("/api/groups", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          group_name: formData.group_name.trim(),
-          contribution_amount: parseFloat(formData.contribution_amount),
-          payout_frequency: formData.payout_frequency,
-          payout_order: formData.payout_order,
-        }),
-      });
+      const groupData = {
+        group_name: formData.group_name.trim(),
+        contribution_amount: parseFloat(formData.contribution_amount),
+        payout_frequency: formData.payout_frequency,
+        payout_order: formData.payout_order,
+        created_by: user?.uid,
+        created_by_name: user?.name,
+        created_at: serverTimestamp(),
+        members: [user?.uid],
+      };
 
-      const data = await response.json();
-
-      if (response.ok) {
-        router.push("/dashboard?success=group_created");
-      } else {
-        setError(data.error || "Failed to create group");
-      }
+      const docRef = await addDoc(collection(db, "groups"), groupData);
+      console.log("Group created with ID:", docRef.id);
+      
+      router.push("/dashboard?success=group_created");
     } catch (err) {
-      setError("Something went wrong. Please try again.");
-      console.error(err);
+      console.error("Error creating group:", err);
+      setError("Failed to create group. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -126,6 +123,10 @@ export default function CreateGroupPage() {
       setErrors((prev) => ({ ...prev, [name]: undefined }));
     }
   };
+
+  if (authLoading) {
+    return <div className="p-8 text-gray-500">Loading...</div>;
+  }
 
   return (
     <div className="max-w-2xl mx-auto space-y-6">

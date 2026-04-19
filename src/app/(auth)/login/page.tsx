@@ -1,16 +1,43 @@
 "use client";
 
-import { use } from "react";
-import { login } from "../actions";
+import { useState, useEffect } from "react";
+import { useFirebaseAuth } from "@/context/FirebaseAuthContext";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 
-export default function LoginPage({ 
-  searchParams 
-}: { 
-  searchParams: Promise<{ error?: string }> 
-}) {
-  const resolvedSearchParams = use(searchParams);
-  const error = resolvedSearchParams.error;
+export default function LoginPage() {
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+  const { login, user } = useFirebaseAuth();
+  const router = useRouter();
+
+  // Log when user changes
+  useEffect(() => {
+    console.log("LoginPage: user changed:", user?.email, user?.role);
+    if (user) {
+      console.log("LoginPage: redirecting to dashboard");
+      window.location.href = "/dashboard";
+    }
+  }, [user, router]);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError("");
+    setLoading(true);
+
+    try {
+      console.log("LoginPage: calling login for", email);
+      await login(email, password);
+      console.log("LoginPage: login completed");
+      // useEffect will handle redirect when user state updates
+    } catch (err: any) {
+      console.error("LoginPage: login error", err);
+      setError(err.message || "Invalid email or password");
+      setLoading(false);
+    }
+  };
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-gray-50 p-4">
@@ -20,32 +47,43 @@ export default function LoginPage({
           <p className="mt-2 text-sm text-gray-500">Access your secure portal</p>
         </div>
 
-        {/* Dynamic Error Handling */}
         {error && (
-          <div className="rounded-md bg-red-50 p-3 text-sm text-red-600 border border-red-100 italic">
-            {error === 'invalid_credentials' ? "Invalid email or password" : 
-             `Error: ${error.replace(/_/g, ' ')}`}
+          <div className="rounded-md bg-red-50 p-3 text-sm text-red-600 border border-red-100">
+            {error}
           </div>
         )}
 
-        <form action={login} className="space-y-4">
-          {/* Email */}
+        <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label className="block text-xs font-bold text-gray-700 uppercase ml-1">Email Address</label>
-            <input name="email" type="email" required className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:ring-emerald-500 outline-none" />
+            <input 
+              name="email" 
+              type="email" 
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required 
+              className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:ring-emerald-500 outline-none" 
+            />
           </div>
           
-          {/* Password */}
           <div>
             <label className="block text-xs font-bold text-gray-700 uppercase ml-1">Password</label>
-            <input name="password" type="password" required className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:ring-emerald-500 outline-none" />
+            <input 
+              name="password" 
+              type="password" 
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required 
+              className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:ring-emerald-500 outline-none" 
+            />
           </div>
 
           <button 
             type="submit" 
-            className="w-full rounded-lg bg-emerald-600 px-4 py-3 text-white font-bold hover:bg-emerald-700 transition-all shadow-lg mt-4 active:scale-[0.98]"
+            disabled={loading}
+            className="w-full rounded-lg bg-emerald-600 px-4 py-3 text-white font-bold hover:bg-emerald-700 transition-all shadow-lg mt-4 active:scale-[0.98] disabled:opacity-50"
           >
-            Sign In
+            {loading ? "Signing In..." : "Sign In"}
           </button>
         </form>
 

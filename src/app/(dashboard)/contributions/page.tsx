@@ -1,42 +1,48 @@
-cat > src/app/(dashboard)/contributions/page.tsx << 'EOF'
 "use client";
 
 import { useEffect, useState } from "react";
-import { useAuth } from "@/context/auth-context";
+import { useFirebaseAuth } from "@/context/FirebaseAuthContext";
+import { collection, query, where, getDocs, orderBy } from "firebase/firestore";
+import { db } from "@/lib/firebase";
 
 interface Contribution {
-  contribution_id: number;
+  id: string;
   amount: number;
-  contribution_date: string;
+  contributionDate: string;
   status: string;
-  group_name: string;
-  user_id: number;
+  groupId: string;
+  groupName?: string;
 }
 
 export default function ContributionsPage() {
-  const auth = useAuth();
+  const { user, loading: authLoading } = useFirebaseAuth();
   const [contributions, setContributions] = useState<Contribution[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    fetchContributions();
-  }, []);
+    if (user) {
+      fetchContributions();
+    }
+  }, [user]);
 
   const fetchContributions = async () => {
     try {
       setLoading(true);
-      const response = await fetch("/api/contributions");
-      const data = await response.json();
-      
-      if (response.ok) {
-        setContributions(data.contributions);
-      } else {
-        setError(data.error || "Failed to load contributions");
-      }
+      const q = query(
+        collection(db, "contributions"),
+        where("userId", "==", user?.uid),
+        orderBy("contributionDate", "desc")
+      );
+      const querySnapshot = await getDocs(q);
+      const contributionsList: Contribution[] = [];
+      querySnapshot.forEach((doc) => {
+        contributionsList.push({ id: doc.id, ...doc.data() } as Contribution);
+      });
+      setContributions(contributionsList);
     } catch (err) {
-      setError("Something went wrong");
-      console.error(err);
+      console.error("Error fetching contributions:", err);
+      setError("Failed to load contributions");
     } finally {
       setLoading(false);
     }
@@ -88,7 +94,7 @@ export default function ContributionsPage() {
     }).format(amount);
   };
 
-  if (loading) {
+  if (authLoading || loading) {
     return (
       <div className="flex items-center justify-center min-h-[50vh]">
         <div className="text-gray-500">Loading your contributions...</div>
@@ -135,9 +141,6 @@ export default function ContributionsPage() {
                     Date
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Group
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Amount
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -147,15 +150,12 @@ export default function ContributionsPage() {
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
                 {contributions.map((contribution) => (
-                  <tr key={contribution.contribution_id} className="hover:bg-gray-50">
+                  <tr key={contribution.id} className="hover:bg-gray-50">
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {formatDate(contribution.contribution_date)}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                      {contribution.group_name}
+                      {formatDate(contribution.contributionDate)}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                      {formatAmount(Number(contribution.amount))}
+                      {formatAmount(contribution.amount)}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       {getStatusBadge(contribution.status)}
@@ -179,4 +179,3 @@ export default function ContributionsPage() {
     </div>
   );
 }
-EOF
