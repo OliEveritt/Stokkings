@@ -31,6 +31,7 @@ const NAV: NavItem[] = [
   { id: "meetings", label: "Meetings", icon: Calendar, roles: ["Member", "Treasurer", "Admin"], path: "/meetings" },
   { id: "analytics", label: "Analytics", icon: BarChart3, roles: ["Treasurer", "Admin"], path: "/analytics" },
   { id: "members", label: "Members", icon: Users, roles: ["Admin"], path: "/members" },
+  { id: "contributions", label: "Contributions", icon: CreditCard, roles: ["Member", "Treasurer", "Admin"], path: "/contributions" },
   { id: "invitations", label: "Invitations", icon: UserPlus, roles: ["Admin"], path: "/invitations" },
  
 ];
