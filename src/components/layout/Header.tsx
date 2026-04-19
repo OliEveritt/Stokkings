@@ -1,139 +1,79 @@
 "use client";
 
-import { useState } from "react";
-import { Bell } from "lucide-react";
-import { MobileNav } from "./MobileNav";
-import { UserMenu } from "./UserMenu";
+import { Menu, User as UserIcon, LogOut, ChevronDown, Building2 } from "lucide-react";
+import { useFirebaseAuth } from "@/context/FirebaseAuthContext";
+import { useRouter } from "next/navigation";
 import type { User, Notification, Role } from "@/types";
 
-interface NotificationDropdownProps {
-  notifs: Notification[];
-  open: boolean;
-  onToggle: () => void;
-}
-
-function NotificationDropdown({
-  notifs,
-  open,
-  onToggle,
-}: NotificationDropdownProps) {
-  const unread = notifs.filter((n) => !n.read).length;
-
-  return (
-    <div className="relative">
-      <button
-        onClick={onToggle}
-        className="relative p-2 rounded-lg hover:bg-gray-100 transition-colors"
-        aria-label="Notifications"
-      >
-        <Bell size={20} className="text-gray-600" />
-        {unread > 0 && (
-          <span className="absolute top-1 right-1 w-4 h-4 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center">
-            {unread}
-          </span>
-        )}
-      </button>
-      {open && (
-        <div className="absolute right-0 mt-2 w-80 bg-white rounded-xl shadow-xl border border-gray-200 z-50 overflow-hidden">
-          <div className="px-4 py-3 border-b border-gray-100 flex items-center justify-between">
-            <span className="font-semibold text-sm text-gray-800">
-              Notifications
-            </span>
-            {unread > 0 && (
-              <span className="text-xs text-blue-600 cursor-pointer hover:underline">
-                Mark all read
-              </span>
-            )}
-          </div>
-          <div className="max-h-64 overflow-y-auto">
-            {notifs.map((n) => (
-              <div
-                key={n.id}
-                className={`px-4 py-3 border-b border-gray-50 last:border-0 ${
-                  n.read ? "opacity-60" : "bg-blue-50/40"
-                }`}
-              >
-                <p className="text-sm text-gray-800">{n.text}</p>
-                <p className="text-xs text-gray-400 mt-1">{n.time}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-    </div>
-  );
+interface Mandate {
+  group_id: number;
+  group_name: string;
+  role_name: string;
 }
 
 interface HeaderProps {
-  user: User;
+  user: User & { group_id?: number };
   groupName: string;
   activeLabel: string;
   notifications: Notification[];
   roleOverride: Role;
+  mandates: Mandate[];
+  onMandateSwitch: (groupId: number) => void;
   onRoleChange: (role: Role) => void;
   onOpenMobileSidebar: () => void;
 }
 
-export function Header({
-  user,
-  groupName,
-  activeLabel,
-  notifications,
-  roleOverride,
-  onRoleChange,
+export default function Header({ 
+  user, 
+  groupName, 
+  activeLabel, 
   onOpenMobileSidebar,
 }: HeaderProps) {
-  const [notifOpen, setNotifOpen] = useState(false);
-  const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const { logout } = useFirebaseAuth();
+  const router = useRouter();
 
-  const closeAll = () => {
-    setNotifOpen(false);
-    setUserMenuOpen(false);
+  const handleLogout = async () => {
+    const isConfirmed = window.confirm("Are you sure you want to sign out?");
+    if (isConfirmed) {
+      await logout();
+      localStorage.clear();
+      sessionStorage.clear();
+      window.location.href = "/login";
+    }
   };
 
   return (
-    <header
-      className="h-14 bg-white border-b border-gray-200 flex items-center justify-between px-4 shrink-0"
-      onClick={closeAll}
-    >
-      <div className="flex items-center gap-3">
-        <MobileNav onOpenSidebar={onOpenMobileSidebar} />
-        <span className="hidden lg:block text-sm text-gray-400">
-          {groupName}{" "}
-          <span className="mx-1.5 text-gray-300">/</span>{" "}
-          <span className="text-gray-700 font-medium">{activeLabel}</span>
-        </span>
+    <header className="h-16 bg-white border-b border-gray-200 flex items-center justify-between px-4 lg:px-8 shrink-0 shadow-sm relative z-30">
+      <div className="flex items-center gap-4">
+        <button onClick={onOpenMobileSidebar} className="lg:hidden p-2 hover:bg-gray-100 rounded-lg">
+          <Menu size={20} />
+        </button>
+        
+        <div className="hidden lg:block">
+          <h1 className="text-lg font-semibold text-gray-800">{activeLabel}</h1>
+          <p className="text-xs text-gray-500">{groupName}</p>
+        </div>
       </div>
 
-      <div
-        className="flex items-center gap-1"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <select
-          value={roleOverride}
-          onChange={(e) => onRoleChange(e.target.value as Role)}
-          className="text-xs border border-dashed border-gray-300 rounded-lg px-2 py-1.5 mr-2 text-gray-500 bg-gray-50 focus:outline-none"
+      <div className="flex items-center gap-3">
+        <button
+          onClick={handleLogout}
+          className="flex items-center gap-2 px-3 py-1.5 text-sm text-red-600 hover:bg-red-50 rounded-lg transition-colors"
         >
-          <option value="Admin">View as: Admin</option>
-          <option value="Treasurer">View as: Treasurer</option>
-          <option value="Member">View as: Member</option>
-        </select>
-        <NotificationDropdown
-          notifs={notifications}
-          open={notifOpen}
-          onToggle={() => {
-            setNotifOpen(!notifOpen);
-            setUserMenuOpen(false);
-          }}
-        />
-        <UserMenu
-          user={{ ...user, role: roleOverride }}
-          open={userMenuOpen}
-          onToggle={() => {
-            setUserMenuOpen(!userMenuOpen);
-            setNotifOpen(false);
-          }}
-        />
+          <LogOut size={16} />
+          <span className="hidden sm:inline">Sign Out</span>
+        </button>
+        
+        <div className="flex items-center gap-2 pl-2 border-l border-gray-200">
+          <div className="w-8 h-8 rounded-full bg-emerald-100 flex items-center justify-center">
+            <UserIcon size={16} className="text-emerald-600" />
+          </div>
+          <div className="hidden md:block text-sm">
+            <p className="font-medium text-gray-800">{user.name}</p>
+            <p className="text-xs text-gray-500">{user.role}</p>
+          </div>
+          <ChevronDown size={14} className="text-gray-400 hidden md:block" />
+        </div>
       </div>
     </header>
   );

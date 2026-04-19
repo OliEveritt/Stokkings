@@ -1,120 +1,179 @@
-'use client';
+"use client";
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState } from "react";
+import { useFirebaseAuth } from "@/context/FirebaseAuthContext";
+import { collection, query, where, getDocs, orderBy } from "firebase/firestore";
+import { db } from "@/lib/firebase";
 
 interface Contribution {
-  contribution_id: number;
-  amount: string;
-  contribution_date: string;
+  id: string;
+  amount: number;
+  contributionDate: string;
   status: string;
-  stokvel_groups: {
-    group_name: string;
-  };
+  groupId: string;
+  groupName?: string;
 }
 
 export default function ContributionsPage() {
+  const { user, loading: authLoading } = useFirebaseAuth();
   const [contributions, setContributions] = useState<Contribution[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    fetchContributions();
-  }, []);
+    if (user) {
+      fetchContributions();
+    }
+  }, [user]);
 
   const fetchContributions = async () => {
     try {
-      const res = await fetch('/api/contributions');
-      if (!res.ok) {
-        throw new Error('Failed to fetch contributions');
-      }
-      const data = await res.json();
-      setContributions(data.contributions || []);
+      setLoading(true);
+      const q = query(
+        collection(db, "contributions"),
+        where("userId", "==", user?.uid),
+        orderBy("contributionDate", "desc")
+      );
+      const querySnapshot = await getDocs(q);
+      const contributionsList: Contribution[] = [];
+      querySnapshot.forEach((doc) => {
+        contributionsList.push({ id: doc.id, ...doc.data() } as Contribution);
+      });
+      setContributions(contributionsList);
     } catch (err) {
-      setError('Failed to load contributions');
-      console.error(err);
+      console.error("Error fetching contributions:", err);
+      setError("Failed to load contributions");
     } finally {
       setLoading(false);
     }
   };
 
   const getStatusBadge = (status: string) => {
-    const styles = {
-      confirmed: 'bg-green-100 text-green-800 px-2 py-1 rounded-full text-xs font-medium',
-      pending: 'bg-yellow-100 text-yellow-800 px-2 py-1 rounded-full text-xs font-medium',
-      missed: 'bg-red-100 text-red-800 px-2 py-1 rounded-full text-xs font-medium',
-    };
-    const labels = {
-      confirmed: 'Confirmed',
-      pending: 'Pending',
-      missed: 'Missed',
-    };
-    return (
-      <span className={styles[status as keyof typeof styles] || styles.pending}>
-        {labels[status as keyof typeof labels] || status}
-      </span>
-    );
+    const statusLower = (status || "pending").toLowerCase();
+    switch (statusLower) {
+      case "confirmed":
+        return (
+          <span className="px-2 py-1 text-xs font-medium rounded-full bg-green-100 text-green-800">
+            ✅ Confirmed
+          </span>
+        );
+      case "pending":
+        return (
+          <span className="px-2 py-1 text-xs font-medium rounded-full bg-yellow-100 text-yellow-800">
+            ⏳ Pending
+          </span>
+        );
+      case "missed":
+        return (
+          <span className="px-2 py-1 text-xs font-medium rounded-full bg-red-100 text-red-800">
+            ❌ Missed
+          </span>
+        );
+      default:
+        return (
+          <span className="px-2 py-1 text-xs font-medium rounded-full bg-gray-100 text-gray-800">
+            {status}
+          </span>
+        );
+    }
   };
 
-  if (loading) {
-    return (
-      <div className="flex justify-center items-center h-64">
-        <div className="text-gray-500">Loading contributions...</div>
-      </div>
-    );
-  }
+  const formatDate = (dateString: string) => {
+    if (!dateString) return "N/A";
+    return new Date(dateString).toLocaleDateString("en-ZA", {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+    });
+  };
 
-  if (error) {
+  const formatAmount = (amount: number) => {
+    return new Intl.NumberFormat("en-ZA", {
+      style: "currency",
+      currency: "ZAR",
+    }).format(amount);
+  };
+
+  if (authLoading || loading) {
     return (
-      <div className="p-8">
-        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
-          {error}
-        </div>
+      <div className="flex items-center justify-center min-h-[50vh]">
+        <div className="text-gray-500">Loading your contributions...</div>
       </div>
     );
   }
 
   return (
-    <div>
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900 tracking-tight">My Contributions</h1>
-        <p className="text-sm text-gray-500 mt-1">Track your contribution history and payment status.</p>
+    <div className="space-y-6">
+      <div>
+        <h1 className="text-2xl font-bold text-gray-900">My Contributions</h1>
+        <p className="text-gray-500 mt-1">
+          Track your savings progress and payment statuses
+        </p>
       </div>
 
-      {contributions.length === 0 ? (
-        <div className="text-center py-12 bg-gray-50 rounded-lg border-2 border-dashed border-gray-200">
-          <h3 className="text-sm font-medium text-gray-900">No contributions yet</h3>
-          <p className="mt-1 text-sm text-gray-500">Your contributions will appear here once you make your first payment.</p>
+      {error && (
+        <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-red-800">
+          {error}
         </div>
-      ) : (
-        <div className="bg-white shadow-sm rounded-lg overflow-hidden">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Group</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {contributions.map((contribution) => (
-                <tr key={contribution.contribution_id}>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {new Date(contribution.contribution_date).toLocaleDateString('en-ZA')}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {contribution.stokvel_groups.group_name}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                    R {parseFloat(contribution.amount).toFixed(2)}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    {getStatusBadge(contribution.status)}
-                  </td>
+      )}
+
+      {!error && contributions.length === 0 && (
+        <div className="bg-white rounded-lg border border-gray-200 p-12 text-center">
+          <div className="text-6xl mb-4">💰</div>
+          <h3 className="text-lg font-medium text-gray-900 mb-2">
+            No contributions yet
+          </h3>
+          <p className="text-gray-500">
+            You haven't made any contributions to your stokvel yet.
+            <br />
+            Your contributions will appear here once they are recorded.
+          </p>
+        </div>
+      )}
+
+      {!error && contributions.length > 0 && (
+        <div className="bg-white shadow-sm rounded-lg border border-gray-200 overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Date
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Amount
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Status
+                  </th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {contributions.map((contribution) => (
+                  <tr key={contribution.id} className="hover:bg-gray-50">
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                      {formatDate(contribution.contributionDate)}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                      {formatAmount(contribution.amount)}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      {getStatusBadge(contribution.status)}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          
+          <div className="bg-gray-50 px-6 py-4 border-t border-gray-200">
+            <div className="flex justify-between items-center">
+              <span className="text-sm text-gray-600">Total Contributions:</span>
+              <span className="text-lg font-bold text-gray-900">
+                {formatAmount(contributions.reduce((sum, c) => sum + Number(c.amount), 0))}
+              </span>
+            </div>
+          </div>
         </div>
       )}
     </div>
