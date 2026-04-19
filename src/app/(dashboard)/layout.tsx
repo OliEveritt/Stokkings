@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useCallback, useEffect } from "react";
+import { useState, useMemo, useCallback, useEffect, useContext } from "react";
 import {
   Home, Users, Wallet, Calendar, BarChart3, Settings,
   CreditCard, UserPlus, CircleDollarSign,
@@ -153,3 +153,5 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     </AuthCtx.Provider>
   );
 }
+
+export const useAuth = () => useContext(AuthCtx);
