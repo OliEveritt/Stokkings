@@ -22,6 +22,8 @@ export default function ManageContributionsPage() {
   const [contributions, setContributions] = useState<Contribution[]>([]);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [editingConfirmedBy, setEditingConfirmedBy] = useState<string | null>(null);
+  const [editValue, setEditValue] = useState("");
   const [message, setMessage] = useState<{ type: string; text: string } | null>(null);
 
   const isTreasurerOrAdmin = user?.role === "Treasurer" || user?.role === "Admin";
@@ -38,7 +40,6 @@ export default function ManageContributionsPage() {
       const querySnapshot = await getDocs(collection(db, "contributions"));
       const contributionsList: Contribution[] = [];
       
-      // Get all users first for lookup
       const usersSnapshot = await getDocs(collection(db, "users"));
       const userMap = new Map();
       usersSnapshot.forEach((docSnap) => {
@@ -93,6 +94,29 @@ export default function ManageContributionsPage() {
       setMessage({ type: "error", text: "Failed to update contribution" });
     } finally {
       setActionLoading(null);
+    }
+  };
+
+  const updateConfirmedBy = async (contributionId: string, confirmedByName: string) => {
+    setActionLoading(contributionId);
+    setMessage(null);
+
+    try {
+      const contributionRef = doc(db, "contributions", contributionId);
+      await updateDoc(contributionRef, {
+        confirmedBy: confirmedByName,
+        confirmedAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      });
+      setMessage({ type: "success", text: "Confirmed by updated!" });
+      await fetchContributions();
+      setTimeout(() => setMessage(null), 3000);
+    } catch (err) {
+      console.error("Error updating confirmed by:", err);
+      setMessage({ type: "error", text: "Failed to update" });
+    } finally {
+      setActionLoading(null);
+      setEditingConfirmedBy(null);
     }
   };
 
@@ -188,7 +212,45 @@ export default function ManageContributionsPage() {
                     <td className="px-6 py-4 text-sm text-gray-500">{formatDate(contribution.contributionDate)}</td>
                     <td className="px-6 py-4">{getStatusBadge(contribution.status)}</td>
                     <td className="px-6 py-4 text-sm text-gray-500">
-                      {contribution.confirmedBy ? `${contribution.confirmedBy} (${formatDate(contribution.confirmedAt || "")})` : "-"}
+                      {editingConfirmedBy === contribution.id ? (
+                        <div className="flex gap-2">
+                          <input
+                            type="text"
+                            value={editValue}
+                            onChange={(e) => setEditValue(e.target.value)}
+                            className="px-2 py-1 border rounded text-sm"
+                            placeholder="Enter name"
+                            autoFocus
+                          />
+                          <button
+                            onClick={() => updateConfirmedBy(contribution.id, editValue)}
+                            className="px-2 py-1 bg-green-500 text-white text-xs rounded"
+                          >
+                            Save
+                          </button>
+                          <button
+                            onClick={() => setEditingConfirmedBy(null)}
+                            className="px-2 py-1 bg-gray-500 text-white text-xs rounded"
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-2">
+                          <span>{contribution.confirmedBy || "-"}</span>
+                          {contribution.status === "confirmed" && (
+                            <button
+                              onClick={() => {
+                                setEditingConfirmedBy(contribution.id);
+                                setEditValue(contribution.confirmedBy || "");
+                              }}
+                              className="text-xs text-blue-500 hover:underline"
+                            >
+                              Edit
+                            </button>
+                          )}
+                        </div>
+                      )}
                     </td>
                     <td className="px-6 py-4">
                       <div className="flex gap-2">
