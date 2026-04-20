@@ -19,6 +19,7 @@ export default function ContributionsPage() {
   const [contributions, setContributions] = useState<Contribution[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [processingPayment, setProcessingPayment] = useState<string | null>(null);
 
   useEffect(() => {
     if (user) {
@@ -45,6 +46,40 @@ export default function ContributionsPage() {
       setError("Failed to load contributions");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handlePayNow = async (contributionId: string, amount: number) => {
+    setProcessingPayment(contributionId);
+    setError(null);
+
+    try {
+      const token = await user?.getIdToken();
+      const response = await fetch("/api/payments/checkout", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          contributionId,
+          amount,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok && data.checkoutUrl) {
+        // Redirect to Yoco checkout page
+        window.location.href = data.checkoutUrl;
+      } else {
+        setError(data.error || "Failed to initiate payment");
+      }
+    } catch (err) {
+      console.error("Payment error:", err);
+      setError("Something went wrong. Please try again.");
+    } finally {
+      setProcessingPayment(null);
     }
   };
 
@@ -146,6 +181,9 @@ export default function ContributionsPage() {
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Status
                   </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Action
+                  </th>
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
@@ -159,6 +197,19 @@ export default function ContributionsPage() {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       {getStatusBadge(contribution.status)}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      {contribution.status === "pending" ? (
+                        <button
+                          onClick={() => handlePayNow(contribution.id, contribution.amount)}
+                          disabled={processingPayment === contribution.id}
+                          className="px-4 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 disabled:opacity-50"
+                        >
+                          {processingPayment === contribution.id ? "Processing..." : "Pay Now"}
+                        </button>
+                      ) : (
+                        <span className="text-sm text-green-600">Paid</span>
+                      )}
                     </td>
                   </tr>
                 ))}
