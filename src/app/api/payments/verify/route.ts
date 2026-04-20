@@ -11,7 +11,6 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: "Missing contributionId" }, { status: 400 });
     }
 
-    // Check if contribution exists
     const contributionRef = doc(db, 'contributions', contributionId);
     const contributionSnap = await getDoc(contributionRef);
     
@@ -19,10 +18,9 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: "Contribution not found" }, { status: 404 });
     }
 
-    // Update contribution status to confirmed
     await updateDoc(contributionRef, {
       status: 'confirmed',
-      paymentIntentId: 'mock_payment_' + Date.now(),
+      paymentIntentId: 'stripe_' + Date.now(),
       updatedAt: new Date().toISOString(),
     });
 

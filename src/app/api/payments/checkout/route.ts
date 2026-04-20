@@ -1,5 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { adminAuth } from "@/lib/firebase-admin";
+import Stripe from 'stripe';
+
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
+  apiVersion: '2025-02-24.acacia',
+});
 
 export async function POST(req: NextRequest) {
   try {
@@ -14,12 +19,30 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     const { contributionId, amount } = body;
 
-    // Mock checkout URL
-    const mockCheckoutUrl = `${process.env.NEXT_PUBLIC_BASE_URL}/payment/mock-checkout?contributionId=${contributionId}&amount=${amount}`;
+    const session = await stripe.checkout.sessions.create({
+      payment_method_types: ['card'],
+      line_items: [
+        {
+          price_data: {
+            currency: 'zar',
+            product_data: {
+              name: `Stokvel Contribution`,
+              description: `Contribution ID: ${contributionId}`,
+            },
+            unit_amount: Math.round(amount * 100),
+          },
+          quantity: 1,
+        },
+      ],
+      mode: 'payment',
+      success_url: `${process.env.NEXT_PUBLIC_BASE_URL}/payment/success?contributionId=${contributionId}`,
+      cancel_url: `${process.env.NEXT_PUBLIC_BASE_URL}/payment/cancel?contributionId=${contributionId}`,
+      metadata: { contributionId },
+    });
 
-    return NextResponse.json({ checkoutUrl: mockCheckoutUrl });
+    return NextResponse.json({ checkoutUrl: session.url });
   } catch (error) {
-    console.error('Error creating checkout:', error);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    console.error('Error creating Stripe checkout:', error);
+    return NextResponse.json({ error: "Failed to create checkout session" }, { status: 500 });
   }
 }
