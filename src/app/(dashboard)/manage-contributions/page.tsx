@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useFirebaseAuth } from "@/context/FirebaseAuthContext";
-import { collection, query, where, getDocs, updateDoc, doc } from "firebase/firestore";
+import { collection, getDocs, updateDoc, doc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 
 interface Contribution {
@@ -21,7 +21,6 @@ export default function ManageContributionsPage() {
   const { user, loading: authLoading } = useFirebaseAuth();
   const [contributions, setContributions] = useState<Contribution[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [message, setMessage] = useState<{ type: string; text: string } | null>(null);
 
@@ -36,23 +35,19 @@ export default function ManageContributionsPage() {
   const fetchContributions = async () => {
     try {
       setLoading(true);
-      const q = query(collection(db, "contributions"));
-      const querySnapshot = await getDocs(q);
+      const querySnapshot = await getDocs(collection(db, "contributions"));
       const contributionsList: Contribution[] = [];
+      
+      // Get all users first for lookup
+      const usersSnapshot = await getDocs(collection(db, "users"));
+      const userMap = new Map();
+      usersSnapshot.forEach((docSnap) => {
+        const data = docSnap.data();
+        userMap.set(docSnap.id, data.name || data.email?.split('@')[0] || "Unknown");
+      });
       
       for (const docSnap of querySnapshot.docs) {
         const data = docSnap.data();
-        // Fetch user name for each contribution
-        let userName = "Unknown";
-        try {
-          const userDoc = await getDocs(query(collection(db, "users"), where("uid", "==", data.userId)));
-          if (!userDoc.empty) {
-            userName = userDoc.docs[0].data().name;
-          }
-        } catch (err) {
-          console.error("Error fetching user:", err);
-        }
-        
         contributionsList.push({
           id: docSnap.id,
           amount: data.amount,
@@ -62,13 +57,12 @@ export default function ManageContributionsPage() {
           groupId: data.groupId,
           confirmedBy: data.confirmedBy,
           confirmedAt: data.confirmedAt,
-          userName,
+          userName: userMap.get(data.userId) || "Unknown",
         });
       }
       setContributions(contributionsList);
     } catch (err) {
       console.error("Error fetching contributions:", err);
-      setError("Failed to load contributions");
     } finally {
       setLoading(false);
     }
@@ -91,15 +85,8 @@ export default function ManageContributionsPage() {
       }
 
       await updateDoc(contributionRef, updateData);
-
-      setMessage({ 
-        type: "success", 
-        text: `Contribution marked as ${newStatus}!` 
-      });
-
-      // Refresh the list
+      setMessage({ type: "success", text: `Contribution marked as ${newStatus}!` });
       await fetchContributions();
-      
       setTimeout(() => setMessage(null), 3000);
     } catch (err) {
       console.error("Error updating contribution:", err);
@@ -142,7 +129,6 @@ export default function ManageContributionsPage() {
     return <div className="p-8 text-gray-500">Loading...</div>;
   }
 
-  // UAT 3: Role guard
   if (!isTreasurerOrAdmin) {
     return (
       <div className="flex items-center justify-center min-h-[50vh]">
@@ -202,11 +188,7 @@ export default function ManageContributionsPage() {
                     <td className="px-6 py-4 text-sm text-gray-500">{formatDate(contribution.contributionDate)}</td>
                     <td className="px-6 py-4">{getStatusBadge(contribution.status)}</td>
                     <td className="px-6 py-4 text-sm text-gray-500">
-                      {contribution.confirmedBy ? (
-                        <span title={contribution.confirmedAt ? formatDate(contribution.confirmedAt) : ""}>
-                          {contribution.confirmedBy}
-                        </span>
-                      ) : "-"}
+                      {contribution.confirmedBy ? `${contribution.confirmedBy} (${formatDate(contribution.confirmedAt || "")})` : "-"}
                     </td>
                     <td className="px-6 py-4">
                       <div className="flex gap-2">
@@ -229,9 +211,7 @@ export default function ManageContributionsPage() {
                           </>
                         )}
                         {contribution.status === "confirmed" && (
-                          <span className="text-sm text-green-600">
-                            Confirmed by {contribution.confirmedBy}
-                          </span>
+                          <span className="text-sm text-green-600">✓ Confirmed</span>
                         )}
                         {contribution.status === "missed" && (
                           <span className="text-sm text-red-600">Missed</span>
