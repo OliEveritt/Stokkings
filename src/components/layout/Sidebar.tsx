@@ -3,6 +3,7 @@
 import { X, Shield, ChevronRight } from "lucide-react";
 import type { NavItem, Rates } from "@/types";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 
 interface SidebarProps {
   items: NavItem[];
@@ -15,139 +16,120 @@ interface SidebarProps {
 
 function SidebarContent({
   items,
-  active,
-  onNav,
   rates,
   onClose,
   showClose,
 }: {
   items: NavItem[];
-  active: string;
-  onNav: (id: string) => void;
   rates: Rates;
   onClose?: () => void;
   showClose?: boolean;
 }) {
+  const pathname = usePathname();
+
   return (
     <>
-      {/* 1. Header & Logo Section */}
-      <div className="flex items-center justify-between px-5 h-16 border-b border-gray-100">
-        <div className="flex items-center gap-2.5">
-          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center shadow-sm">
-            <Shield size={16} className="text-white" />
+      {/* 1. Brand Identity */}
+      <div className="flex items-center justify-between px-6 h-20 border-b border-gray-50">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-2xl bg-emerald-600 flex items-center justify-center shadow-lg shadow-emerald-100">
+            <Shield size={20} className="text-white" />
           </div>
-          <span className="font-bold text-gray-800 text-base tracking-tight">
+          <span className="font-black text-gray-900 text-xl tracking-tighter">
             Stokkings
           </span>
         </div>
         {showClose && (
-          <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-gray-100">
+          <button onClick={onClose} className="p-2 rounded-xl hover:bg-gray-100 transition-colors">
             <X size={20} className="text-gray-500" />
           </button>
         )}
       </div>
 
-      {/* 2. Primary Navigation Ledger */}
-      <nav className="flex-1 overflow-y-auto py-4 px-3">
-        <p className="px-3 mb-2 text-[10px] font-semibold text-gray-400 uppercase tracking-widest">
-          Navigation
-        </p>
-        <div className="space-y-0.5">
-          {items.map((item) => {
-  const Icon = item.icon;
-  const isActive = item.id === active;
+      {/* 2. Navigation Ledger */}
+      <nav className="flex-1 overflow-y-auto py-8 px-4 space-y-8">
+        <div>
+          <p className="px-4 mb-4 text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">
+            Financial Menu
+          </p>
+          <div className="space-y-1">
+            {items.map((item) => {
+              const Icon = item.icon;
+              
+              // RECONCILIATION LOGIC: 
+              // Map 'dashboard' to root and 'invitations' to the GeneralTest ID
+              let href = item.href || `/${item.id}`;
+              if (item.id === "dashboard") href = "/";
+              if (item.id === "invitations") href = "/groups/5OH8mq7aM4oPJVSdJ7Zo/invite";
 
-  // SPECIAL CASE: Redirect Invitations to the Dynamic Route
-  if (item.id === "invitations") {
-    return (
-      <Link
-        key={item.id}
-        href="/groups/TestGroup/invite" // Points to your new dynamic implementation
-        className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all ${
-          isActive
-            ? "bg-emerald-50 text-emerald-700 shadow-sm"
-            : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
-        }`}
-      >
-        <Icon size={18} className={isActive ? "text-emerald-600" : "text-gray-400"} />
-        <span className="flex-1 text-left">{item.label}</span>
-        {isActive && <ChevronRight size={14} className="text-emerald-400" />}
-      </Link>
-    );
-  }
+              const isActive = pathname === href;
 
-  // DEFAULT CASE: Use the existing onNav logic for everything else
-  return (
-    <button
-      key={item.id}
-      onClick={() => {
-        onNav(item.id);
-        onClose?.();
-      }}
-      className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all ${
-        isActive
-          ? "bg-emerald-50 text-emerald-700 shadow-sm"
-          : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
-      }`}
-    >
-      <Icon size={18} className={isActive ? "text-emerald-600" : "text-gray-400"} />
-      <span className="flex-1 text-left">{item.label}</span>
-      {isActive && <ChevronRight size={14} className="text-emerald-400" />}
-    </button>
-  );
-})}
+              return (
+                <Link
+                  key={item.id}
+                  href={href}
+                  onClick={onClose}
+                  className={`group flex items-center gap-3 px-4 py-3.5 rounded-2xl text-sm font-bold transition-all ${
+                    isActive
+                      ? "bg-gray-900 text-white shadow-xl shadow-gray-200"
+                      : "text-gray-500 hover:bg-emerald-50 hover:text-emerald-700"
+                  }`}
+                >
+                  <Icon 
+                    size={18} 
+                    className={`${isActive ? "text-emerald-400" : "text-gray-400 group-hover:text-emerald-500"} transition-colors`} 
+                  />
+                  <span className="flex-1">{item.label}</span>
+                  {isActive && <ChevronRight size={14} className="text-gray-400" />}
+                </Link>
+              );
+            })}
+          </div>
         </div>
       </nav>
 
-      {/* 3. Economic Indicators (Rates) */}
-      <div className="px-4 py-4 border-t border-gray-100">
-        <div className="bg-gradient-to-br from-emerald-50 to-teal-50 rounded-xl p-3.5 border border-emerald-100">
-          <p className="text-xs font-semibold text-emerald-800 mb-1">
-            SA Interest Rates
+      {/* 3. Economic Indicators (SARB Data) */}
+      <div className="p-6">
+        <div className="bg-gray-900 rounded-[2rem] p-5 shadow-2xl relative overflow-hidden">
+          <div className="absolute top-0 right-0 w-24 h-24 bg-emerald-500/10 rounded-full -mr-12 -mt-12" />
+          <p className="text-[10px] font-black text-emerald-400 uppercase tracking-widest mb-3">
+            Market Rates
           </p>
-          <div className="flex justify-between text-xs text-emerald-700">
-            <span>Repo: <strong>{rates.repo}%</strong></span>
-            <span>Prime: <strong>{rates.prime}%</strong></span>
+          <div className="space-y-3">
+            <div className="flex justify-between items-end">
+              <span className="text-[10px] text-gray-400 font-bold uppercase">Repo Rate</span>
+              <span className="text-lg font-black text-white">{rates.repo}%</span>
+            </div>
+            <div className="flex justify-between items-end">
+              <span className="text-[10px] text-gray-400 font-bold uppercase">Prime Lending</span>
+              <span className="text-lg font-black text-white">{rates.prime}%</span>
+            </div>
           </div>
-          <p className="text-[10px] text-emerald-500 mt-1.5">
-            SARB &middot; Updated {rates.updated}
-          </p>
+          <div className="mt-4 pt-4 border-t border-white/5 flex items-center justify-between">
+            <span className="text-[8px] text-gray-500 font-bold uppercase italic">Source: SARB</span>
+            <span className="text-[8px] text-gray-500 font-bold">{rates.updated}</span>
+          </div>
         </div>
       </div>
     </>
   );
 }
 
-// THE MAIN EXPORT (Default)
-export default function Sidebar({
-  items,
-  active,
-  onNav,
-  rates,
-  mobile,
-  onClose,
-}: SidebarProps) {
-  if (mobile) {
+export default function Sidebar(props: SidebarProps) {
+  if (props.mobile) {
     return (
       <div className="fixed inset-0 z-50 flex lg:hidden">
-        <div className="fixed inset-0 bg-gray-900/40 backdrop-blur-sm" onClick={onClose} />
-        <div className="relative w-72 max-w-[80vw] bg-white flex flex-col h-full shadow-2xl z-50 animate-in slide-in-from-left duration-300">
-          <SidebarContent
-            items={items}
-            active={active}
-            onNav={onNav}
-            rates={rates}
-            onClose={onClose}
-            showClose
-          />
+        <div className="fixed inset-0 bg-gray-900/60 backdrop-blur-md" onClick={props.onClose} />
+        <div className="relative w-80 bg-white flex flex-col h-full z-50 animate-in slide-in-from-left duration-500">
+          <SidebarContent {...props} showClose />
         </div>
       </div>
     );
   }
 
   return (
-    <div className="hidden lg:flex flex-col w-64 shrink-0 bg-white border-r border-gray-200 h-full">
-      <SidebarContent items={items} active={active} onNav={onNav} rates={rates} />
+    <div className="hidden lg:flex flex-col w-72 shrink-0 bg-white border-r border-gray-100 h-full">
+      <SidebarContent {...props} />
     </div>
   );
 }

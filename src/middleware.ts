@@ -1,16 +1,18 @@
-import { NextResponse, type NextRequest } from 'next/server';
+// src/middleware.ts
+import { NextResponse } from "next/server";
+import type { NextRequest } from "next/server";
 
 export function middleware(request: NextRequest) {
-  const path = request.nextUrl.pathname;
+  const { pathname } = request.nextUrl;
 
-  // Simple redirects only - no auth checks in middleware
-  if (path === '/') {
-    return NextResponse.redirect(new URL('/login', request.url));
+  // ONLY handle the 404 fix. Do NOT redirect based on auth here.
+  if (pathname === "/dashboard") {
+    return NextResponse.redirect(new URL("/", request.url));
   }
 
   return NextResponse.next();
 }
 
 export const config = {
-  matcher: ['/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)'],
+  matcher: ["/((?!api|_next/static|_next/image|favicon.ico).*)"],
 };

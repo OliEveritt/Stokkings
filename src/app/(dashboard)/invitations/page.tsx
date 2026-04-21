@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 
 export default function InvitationsRedirect() {
-  // Change this from "/dashboard" to your dynamic invite path
-  redirect("/groups/TestGroup/invite");
+  // Redirecting to the specific GeneralTest group ID from your Firestore
+  redirect("/groups/5OH8mq7aM4oPJVSdJ7Zo/invite");
 }
