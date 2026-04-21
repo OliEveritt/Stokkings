@@ -1,4 +1,4 @@
-const API_NINJAS_URL =
+﻿const API_NINJAS_URL =
   "https://api.api-ninjas.com/v1/interestrate?country=South_Africa";
 
 const API_KEY = process.env.API_NINJAS_KEY ?? "";
@@ -9,6 +9,7 @@ const PRIME_SPREAD = 3.5;
 export interface SarbRates {
   repo: number;
   prime: number;
+  updatedAt: Date;
 }
 
 interface ApiNinjasResponse {
@@ -45,5 +46,6 @@ export async function fetchSarbRates(): Promise<SarbRates> {
   return {
     repo,
     prime: Math.round((repo + PRIME_SPREAD) * 100) / 100,
+    updatedAt: new Date(),
   };
 }
