@@ -15,7 +15,6 @@ export default defineConfig({
       "tests/unit/services/contribution.service.test.ts",
       "tests/unit/services/payment.service.test.ts",
       "tests/unit/services/payout.service.test.ts",
-      "tests/unit/services/projection.service.test.ts",
       "tests/unit/services/analytics.service.test.ts",
       "tests/unit/services/export.service.test.ts",
       "tests/unit/repositories/analytics.repository.test.ts",
