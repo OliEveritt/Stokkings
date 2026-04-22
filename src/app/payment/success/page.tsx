@@ -1,3 +1,9 @@
+/**
+ * US-2.3: Payment Success Page
+ * After Stripe payment succeeds, user lands here.
+ * This page calls the verify API to update the contribution status.
+ */
+
 "use client";
 
 import { useEffect, useState } from "react";
@@ -10,7 +16,6 @@ export default function PaymentSuccessPage() {
   const contributionId = searchParams.get("contributionId");
   const [verifying, setVerifying] = useState(true);
   const [verified, setVerified] = useState(false);
-  const [error, setError] = useState(false);
 
   useEffect(() => {
     async function verifyPayment() {
@@ -20,17 +25,15 @@ export default function PaymentSuccessPage() {
       }
 
       try {
+        // Call the verify API to update contribution status
         const response = await fetch(`/api/payments/verify?contributionId=${contributionId}`);
         const data = await response.json();
 
         if (data.success) {
           setVerified(true);
-        } else {
-          setError(true);
         }
       } catch (err) {
         console.error("Verification error:", err);
-        setError(true);
       } finally {
         setVerifying(false);
       }

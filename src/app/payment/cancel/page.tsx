@@ -1,3 +1,9 @@
+/**
+ * US-2.3: Payment Cancel Page
+ * If user cancels payment on Stripe, they land here.
+ * Contribution remains "pending".
+ */
+
 "use client";
 
 import Link from "next/link";
