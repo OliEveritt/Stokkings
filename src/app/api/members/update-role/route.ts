@@ -1,41 +1,35 @@
 import { NextRequest, NextResponse } from "next/server";
-import sql from "mssql";
-
-const sqlConfig = {
-  user: process.env.AZURE_SQL_USER,
-  password: process.env.AZURE_SQL_PASSWORD,
-  database: process.env.AZURE_SQL_DATABASE,
-  server: process.env.AZURE_SQL_SERVER || "",
-  options: { encrypt: true, trustServerCertificate: false }
-};
+import { adminAuth } from "@/lib/firebase-admin";
+import { db } from "@/lib/firebase";
+import { doc, updateDoc, getDoc } from "firebase/firestore";
 
 export async function POST(req: NextRequest) {
   try {
-    const { user_id, group_id, role_name } = await req.json();
-
-    const pool = await sql.connect(sqlConfig);
-    
-    // Get the role ID for the requested role
-    const roleResult = await pool.request()
-      .input('roleName', sql.NVarChar, role_name)
-      .query("SELECT role_id FROM dbo.roles WHERE role_name = @roleName");
-    
-    const roleId = roleResult.recordset[0]?.role_id;
-    
-    if (!roleId) {
-      return NextResponse.json({ error: `Role '${role_name}' not found` }, { status: 500 });
+    const authHeader = req.headers.get('authorization');
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
     }
 
-    // Update user's role
-    await pool.request()
-      .input('userId', sql.Int, user_id)
-      .input('groupId', sql.Int, group_id)
-      .input('roleId', sql.Int, roleId)
-      .query(`
-        UPDATE dbo.group_members 
-        SET role_id = @roleId 
-        WHERE user_id = @userId AND group_id = @groupId
-      `);
+    const token = authHeader.split('Bearer ')[1];
+    const decodedToken = await adminAuth.verifyIdToken(token);
+    const adminUserId = decodedToken.uid;
+
+    // Check if requester is Admin
+    const adminDoc = await getDoc(doc(db, "users", adminUserId));
+    const adminData = adminDoc.data();
+
+    if (!adminData || adminData.role !== 'Admin') {
+      return NextResponse.json({ error: "Only Admins can update roles" }, { status: 403 });
+    }
+
+    const { user_id, role_name } = await req.json();
+
+    // Update user role in Firestore
+    const userRef = doc(db, "users", user_id);
+    await updateDoc(userRef, {
+      role: role_name,
+      updatedAt: new Date().toISOString(),
+    });
 
     return NextResponse.json({ success: true });
   } catch (error) {
