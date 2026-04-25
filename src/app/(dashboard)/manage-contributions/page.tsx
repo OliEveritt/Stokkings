@@ -1,3 +1,12 @@
+/**
+ * US-2.2: Treasurer Contribution Management
+ * This page allows Treasurers and Admins to:
+ * - View all member contributions
+ * - Confirm pending payments (records name + timestamp)
+ * - Flag missed payments
+ * - Edit confirmed_by name if needed
+ */
+
 "use client";
 
 import { useEffect, useState } from "react";
@@ -11,7 +20,6 @@ interface Contribution {
   contributionDate: string;
   status: string;
   userId: string;
-  groupId: string;
   confirmedBy?: string;
   confirmedAt?: string;
   userName?: string;
@@ -26,6 +34,7 @@ export default function ManageContributionsPage() {
   const [editValue, setEditValue] = useState("");
   const [message, setMessage] = useState<{ type: string; text: string } | null>(null);
 
+  // ROLE CHECK: Only Treasurers and Admins can access this page
   const isTreasurerOrAdmin = user?.role === "Treasurer" || user?.role === "Admin";
 
   useEffect(() => {
@@ -34,12 +43,15 @@ export default function ManageContributionsPage() {
     }
   }, [user]);
 
+  // Fetch all contributions and map userId to user names
   const fetchContributions = async () => {
     try {
       setLoading(true);
+      // Get all contributions
       const querySnapshot = await getDocs(collection(db, "contributions"));
       const contributionsList: Contribution[] = [];
       
+      // Get all users to map userId to names
       const usersSnapshot = await getDocs(collection(db, "users"));
       const userMap = new Map();
       usersSnapshot.forEach((docSnap) => {
@@ -69,6 +81,7 @@ export default function ManageContributionsPage() {
     }
   };
 
+  // Confirm or Flag Missed a contribution
   const updateContributionStatus = async (contributionId: string, newStatus: string) => {
     setActionLoading(contributionId);
     setMessage(null);
@@ -80,6 +93,7 @@ export default function ManageContributionsPage() {
         updatedAt: new Date().toISOString(),
       };
 
+      // If confirming, record who confirmed and when (UAT 1 & 4)
       if (newStatus === "confirmed") {
         updateData.confirmedBy = user?.name;
         updateData.confirmedAt = new Date().toISOString();
@@ -87,7 +101,7 @@ export default function ManageContributionsPage() {
 
       await updateDoc(contributionRef, updateData);
       setMessage({ type: "success", text: `Contribution marked as ${newStatus}!` });
-      await fetchContributions();
+      await fetchContributions(); // Refresh the list
       setTimeout(() => setMessage(null), 3000);
     } catch (err) {
       console.error("Error updating contribution:", err);
@@ -97,6 +111,7 @@ export default function ManageContributionsPage() {
     }
   };
 
+  // Edit the confirmed_by field (for fixing old data)
   const updateConfirmedBy = async (contributionId: string, confirmedByName: string) => {
     setActionLoading(contributionId);
     setMessage(null);
@@ -153,6 +168,7 @@ export default function ManageContributionsPage() {
     return <div className="p-8 text-gray-500">Loading...</div>;
   }
 
+  // UAT 3: Access Denied for non-Treasurers/non-Admins
   if (!isTreasurerOrAdmin) {
     return (
       <div className="flex items-center justify-center min-h-[50vh]">
@@ -222,32 +238,14 @@ export default function ManageContributionsPage() {
                             placeholder="Enter name"
                             autoFocus
                           />
-                          <button
-                            onClick={() => updateConfirmedBy(contribution.id, editValue)}
-                            className="px-2 py-1 bg-green-500 text-white text-xs rounded"
-                          >
-                            Save
-                          </button>
-                          <button
-                            onClick={() => setEditingConfirmedBy(null)}
-                            className="px-2 py-1 bg-gray-500 text-white text-xs rounded"
-                          >
-                            Cancel
-                          </button>
+                          <button onClick={() => updateConfirmedBy(contribution.id, editValue)} className="px-2 py-1 bg-green-500 text-white text-xs rounded">Save</button>
+                          <button onClick={() => setEditingConfirmedBy(null)} className="px-2 py-1 bg-gray-500 text-white text-xs rounded">Cancel</button>
                         </div>
                       ) : (
                         <div className="flex items-center gap-2">
                           <span>{contribution.confirmedBy || "-"}</span>
                           {contribution.status === "confirmed" && (
-                            <button
-                              onClick={() => {
-                                setEditingConfirmedBy(contribution.id);
-                                setEditValue(contribution.confirmedBy || "");
-                              }}
-                              className="text-xs text-blue-500 hover:underline"
-                            >
-                              Edit
-                            </button>
+                            <button onClick={() => { setEditingConfirmedBy(contribution.id); setEditValue(contribution.confirmedBy || ""); }} className="text-xs text-blue-500 hover:underline">Edit</button>
                           )}
                         </div>
                       )}
@@ -256,28 +254,16 @@ export default function ManageContributionsPage() {
                       <div className="flex gap-2">
                         {contribution.status === "pending" && (
                           <>
-                            <button
-                              onClick={() => updateContributionStatus(contribution.id, "confirmed")}
-                              disabled={actionLoading === contribution.id}
-                              className="px-3 py-1 bg-green-500 text-white text-sm rounded hover:bg-green-600 disabled:opacity-50"
-                            >
+                            <button onClick={() => updateContributionStatus(contribution.id, "confirmed")} disabled={actionLoading === contribution.id} className="px-3 py-1 bg-green-500 text-white text-sm rounded hover:bg-green-600 disabled:opacity-50">
                               {actionLoading === contribution.id ? "..." : "Confirm"}
                             </button>
-                            <button
-                              onClick={() => updateContributionStatus(contribution.id, "missed")}
-                              disabled={actionLoading === contribution.id}
-                              className="px-3 py-1 bg-red-500 text-white text-sm rounded hover:bg-red-600 disabled:opacity-50"
-                            >
+                            <button onClick={() => updateContributionStatus(contribution.id, "missed")} disabled={actionLoading === contribution.id} className="px-3 py-1 bg-red-500 text-white text-sm rounded hover:bg-red-600 disabled:opacity-50">
                               {actionLoading === contribution.id ? "..." : "Flag Missed"}
                             </button>
                           </>
                         )}
-                        {contribution.status === "confirmed" && (
-                          <span className="text-sm text-green-600">✓ Confirmed</span>
-                        )}
-                        {contribution.status === "missed" && (
-                          <span className="text-sm text-red-600">Missed</span>
-                        )}
+                        {contribution.status === "confirmed" && <span className="text-sm text-green-600">✓ Confirmed</span>}
+                        {contribution.status === "missed" && <span className="text-sm text-red-600">Missed</span>}
                       </div>
                     </td>
                   </tr>

@@ -1,3 +1,9 @@
+/**
+ * US-2.3: Payment Failure Page
+ * If Stripe payment fails (e.g., card declined), user lands here.
+ * Contribution remains "pending".
+ */
+
 "use client";
 
 import Link from "next/link";
