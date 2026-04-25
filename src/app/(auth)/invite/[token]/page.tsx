@@ -3,7 +3,7 @@ import { doc, getDoc, updateDoc, collection, addDoc, serverTimestamp } from "fir
 import { redirect } from "next/navigation";
 import { ShieldCheck, UserPlus } from "lucide-react";
 
-export default async function InviteAcceptPage({ params }: { params: { token: string } }) {
+export default async function InviteAcceptPage({ params }: { params: Promise<{ token: string }> }) {
   const { token } = await params;
   
   // 1. Fetch Invitation Data
