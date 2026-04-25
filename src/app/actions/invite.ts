@@ -1,6 +1,7 @@
 "use server";
 
 import { db } from "@/lib/firebase";
+<<<<<<< HEAD
 import { 
   doc, 
   setDoc, 
@@ -20,6 +21,25 @@ export async function createInvitation(email: string, groupId: string, adminId: 
     const normalizedEmail = email.toLowerCase().trim();
 
     // --- UAT 3: DUPLICATE DETECTION ---
+=======
+import { doc, setDoc, collection, query, where, getDocs } from "firebase/firestore";
+import { v4 as uuidv4 } from "uuid";
+
+/**
+ * Sprint 2: Invitation System Implementation
+ * Aubrey de Bruyn (2609389)
+ */
+export async function createInvitation(email: string, groupId: string, adminId: string) {
+  try {
+    // 1. Validate that we have an Admin ID from the frontend
+    if (!adminId) {
+      return { success: false, error: "Authentication Error: No Admin ID detected." };
+    }
+
+    const normalizedEmail = email.toLowerCase().trim();
+
+    // 2. UAT 3: Duplicate Detection
+>>>>>>> 80825cc
     const memberQuery = query(
       collection(db, "group_members"),
       where("groupId", "==", groupId),
@@ -27,6 +47,7 @@ export async function createInvitation(email: string, groupId: string, adminId: 
     );
     
     const memberSnapshot = await getDocs(memberQuery);
+<<<<<<< HEAD
     
     if (!memberSnapshot.empty) {
       return { 
@@ -43,6 +64,18 @@ export async function createInvitation(email: string, groupId: string, adminId: 
     expiresAt.setDate(expiresAt.getDate() + 7);
 
     // --- DATABASE PERSISTENCE ---
+=======
+    if (!memberSnapshot.empty) {
+      return { success: false, error: "Audit Alert: User is already a member." };
+    }
+
+    // 3. Logic: Token & Expiry
+    const token = uuidv4(); 
+    const expiresAt = new Date();
+    expiresAt.setDate(expiresAt.getDate() + 7);
+
+    // 4. Persistence
+>>>>>>> 80825cc
     await setDoc(doc(db, "invitations", token), {
       email: normalizedEmail,
       groupId: groupId,
@@ -52,6 +85,7 @@ export async function createInvitation(email: string, groupId: string, adminId: 
       createdAt: new Date().toISOString(),
     });
 
+<<<<<<< HEAD
     return { 
       success: true, 
       token: token,
@@ -64,5 +98,11 @@ export async function createInvitation(email: string, groupId: string, adminId: 
       success: false, 
       error: "Critical Error: System failed to generate invitation." 
     };
+=======
+    return { success: true, token };
+  } catch (error: any) {
+    console.error("Invite Error:", error.message);
+    return { success: false, error: "Critical Failure: " + error.message };
+>>>>>>> 80825cc
   }
 }

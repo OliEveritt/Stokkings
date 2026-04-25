@@ -1,0 +1,29 @@
+name: Sprint 2 Development CI
+on:
+  push:
+    branches: [ "develop" ]
+  pull_request:
+    branches: [ "develop" ]
+
+jobs:
+  test-and-audit:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install Dependencies
+        run: npm ci
+
+      - name: Run Sprint 2 TDD & Coverage
+        # High coverage (>50%) is required for an Excellent grade 
+        run: npx vitest run --coverage tests/unit/sprint2_tdd.test.ts
+
+      - name: Security Rules Integration Test
+        run: npx vitest run tests/integration/security_audit.test.ts
