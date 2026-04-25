@@ -1,28 +1,22 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/utils/supabase/server";
-import sql from "mssql";
-
-const sqlConfig = {
-  user: process.env.AZURE_SQL_USER,
-  password: process.env.AZURE_SQL_PASSWORD,
-  database: process.env.AZURE_SQL_DATABASE,
-  server: process.env.AZURE_SQL_SERVER || "",
-  options: { encrypt: true, trustServerCertificate: false }
-};
+import { adminAuth } from "@/lib/firebase-admin";
+import { db } from "@/lib/firebase";
+import { collection, addDoc, getDoc, doc, getDocs } from "firebase/firestore";
 
 export async function POST(req: NextRequest) {
   try {
-    const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-    
-    if (!user) {
+    const authHeader = req.headers.get('authorization');
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
       return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
     }
+
+    const token = authHeader.split('Bearer ')[1];
+    const decodedToken = await adminAuth.verifyIdToken(token);
+    const userId = decodedToken.uid;
 
     const body = await req.json();
     const { group_name, contribution_amount, payout_frequency, payout_order } = body;
 
-    // Input validation (UAT 3)
     if (!group_name || group_name.trim().length === 0) {
       return NextResponse.json({ error: "Group name is required" }, { status: 400 });
     }
@@ -35,64 +29,67 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Payout frequency is required" }, { status: 400 });
     }
 
-    const pool = await sql.connect(sqlConfig);
+    const userDoc = await getDoc(doc(db, "users", userId));
+    const userData = userDoc.data();
 
-    // Get user's local ID and role (UAT 2: Admin check)
-    const userResult = await pool.request()
-      .input('authId', sql.NVarChar, user.id)
-      .query(`
-        SELECT u.user_id, r.role_name
-        FROM dbo.users u
-        LEFT JOIN dbo.roles r ON u.role_id = r.role_id
-        WHERE u.external_auth_id = @authId
-      `);
-    
-    const localUser = userResult.recordset[0];
-    
-    if (!localUser || localUser.role_name !== 'Admin') {
+    if (!userData || userData.role !== 'Admin') {
       return NextResponse.json({ error: "Only Admins can create groups" }, { status: 403 });
     }
 
-    // Create the group
-    const result = await pool.request()
-      .input('groupName', sql.NVarChar, group_name.trim())
-      .input('amount', sql.Decimal(15,2), contribution_amount)
-      .input('frequency', sql.NVarChar, payout_frequency)
-      .input('createdBy', sql.Int, localUser.user_id)
-      .query(`
-        INSERT INTO dbo.stokvel_groups (group_name, contribution_amount, payout_frequency, created_by, created_at)
-        OUTPUT INSERTED.group_id, INSERTED.group_name
-        VALUES (@groupName, @amount, @frequency, @createdBy, GETDATE())
-      `);
+    const groupData = {
+      group_name: group_name.trim(),
+      contribution_amount: parseFloat(contribution_amount),
+      payout_frequency: payout_frequency,
+      payout_order: payout_order || 'rotational',
+      created_by: userId,
+      created_by_name: userData.name,
+      created_at: new Date().toISOString(),
+      members: [userId],
+    };
 
-    const newGroup = result.recordset[0];
+    const docRef = await addDoc(collection(db, "groups"), groupData);
 
-    // Automatically add the creator as a member of the group with Admin role
-    const roleResult = await pool.request()
-      .query(`
-        SELECT role_id FROM dbo.roles WHERE role_name = 'Admin'
-      `);
-    
-    const adminRoleId = roleResult.recordset[0]?.role_id;
-
-    if (adminRoleId) {
-      await pool.request()
-        .input('userId', sql.Int, localUser.user_id)
-        .input('groupId', sql.Int, newGroup.group_id)
-        .input('roleId', sql.Int, adminRoleId)
-        .query(`
-          INSERT INTO dbo.group_members (user_id, group_id, role_id, join_date)
-          VALUES (@userId, @groupId, @roleId, GETDATE())
-        `);
-    }
+    await addDoc(collection(db, "group_members"), {
+      userId: userId,
+      groupId: docRef.id,
+      role: 'Admin',
+      joinedAt: new Date().toISOString(),
+    });
 
     return NextResponse.json({ 
       success: true, 
-      group: newGroup,
-      message: "Group created successfully"
+      group_id: docRef.id,
+      group: groupData
     });
   } catch (error) {
     console.error("Error creating group:", error);
     return NextResponse.json({ error: "Failed to create group" }, { status: 500 });
+  }
+}
+
+export async function GET(req: NextRequest) {
+  try {
+    const authHeader = req.headers.get('authorization');
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
+    }
+
+    const token = authHeader.split('Bearer ')[1];
+    const decodedToken = await adminAuth.verifyIdToken(token);
+    const userId = decodedToken.uid;
+
+    const groupsSnapshot = await getDocs(collection(db, "groups"));
+    const groups: Array<{ id: string; [key: string]: any }> = [];
+    groupsSnapshot.forEach((doc) => {
+      const data = doc.data();
+      if (data.members && data.members.includes(userId)) {
+        groups.push({ id: doc.id, ...data });
+      }
+    });
+
+    return NextResponse.json({ groups });
+  } catch (error) {
+    console.error("Error fetching groups:", error);
+    return NextResponse.json({ error: "Failed to fetch groups" }, { status: 500 });
   }
 }
