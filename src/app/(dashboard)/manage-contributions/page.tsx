@@ -20,6 +20,7 @@ interface Contribution {
   contributionDate: string;
   status: string;
   userId: string;
+  groupId: string;
   confirmedBy?: string;
   confirmedAt?: string;
   userName?: string;
