@@ -3,7 +3,7 @@
  * This API creates a Stripe Checkout session and returns a redirect URL.
  * When a member clicks "Pay Now", this endpoint is called.
  */
-
+export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from "next/server";
 import { adminAuth } from "@/lib/firebase-admin";
 import Stripe from 'stripe';
