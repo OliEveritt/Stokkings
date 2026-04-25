@@ -1,17 +1,22 @@
-/**
+]/**
  * US-2.3: Member Payment with Stripe
  * This API creates a Stripe Checkout session and returns a redirect URL.
  * When a member clicks "Pay Now", this endpoint is called.
  */
-export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from "next/server";
 import { adminAuth } from "@/lib/firebase-admin";
-import Stripe from 'stripe';
 
-// Initialize Stripe with secret key from .env.local
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-  apiVersion: '2026-03-25.dahlia',
-});
+// Lazy load Stripe - only initialize when API is called
+let stripe: any = null;
+
+function getStripe() {
+  if (!stripe) {
+    // Dynamically import Stripe to avoid build-time initialization
+    const Stripe = require('stripe');
+    stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
+  }
+  return stripe;
+}
 
 export async function POST(req: NextRequest) {
   try {
@@ -28,27 +33,30 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     const { contributionId, amount } = body;
 
-    // STEP 3: Create a Stripe Checkout Session
+    // STEP 3: Get Stripe instance (lazy loaded)
+    const stripe = getStripe();
+
+    // STEP 4: Create a Stripe Checkout Session
     const session = await stripe.checkout.sessions.create({
-      payment_method_types: ['card'],                    // Accept card payments
+      payment_method_types: ['card'],
       line_items: [{
         price_data: {
-          currency: 'zar',                               // South African Rand
+          currency: 'zar',
           product_data: {
             name: `Stokvel Contribution`,
             description: `Contribution ID: ${contributionId}`,
           },
-          unit_amount: Math.round(amount * 100),         // Convert Rands to cents
+          unit_amount: Math.round(amount * 100),
         },
         quantity: 1,
       }],
-      mode: 'payment',                                   // One-time payment
+      mode: 'payment',
       success_url: `${process.env.NEXT_PUBLIC_BASE_URL}/payment/success?contributionId=${contributionId}`,
       cancel_url: `${process.env.NEXT_PUBLIC_BASE_URL}/payment/cancel?contributionId=${contributionId}`,
       metadata: { contributionId },
     });
 
-    // STEP 4: Return the Stripe checkout URL to the frontend
+    // STEP 5: Return the Stripe checkout URL to the frontend
     return NextResponse.json({ checkoutUrl: session.url });
   } catch (error) {
     console.error('Error creating Stripe checkout:', error);
