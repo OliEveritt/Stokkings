@@ -79,7 +79,7 @@ export async function GET(req: NextRequest) {
     const userId = decodedToken.uid;
 
     const groupsSnapshot = await getDocs(collection(db, "groups"));
-    const groups = [];
+    const groups: Array<{ id: string; [key: string]: any }> = [];
     groupsSnapshot.forEach((doc) => {
       const data = doc.data();
       if (data.members && data.members.includes(userId)) {
