@@ -8,7 +8,7 @@ import {
   createUserWithEmailAndPassword,
   signOut
 } from 'firebase/auth';
-import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { doc, getDoc, setDoc, onSnapshot } from 'firebase/firestore';
 
 interface AuthUser {
   uid: string;
@@ -24,6 +24,7 @@ interface AuthContextType {
   login: (email: string, password: string) => Promise<void>;
   signup: (email: string, password: string, name: string) => Promise<void>;
   logout: () => Promise<void>;
+  refreshUser: () => Promise<void>;
 }
 
 const FirebaseAuthContext = createContext<AuthContextType | null>(null);
@@ -31,14 +32,37 @@ const FirebaseAuthContext = createContext<AuthContextType | null>(null);
 export function FirebaseAuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [loading, setLoading] = useState(true);
+  const [firebaseUser, setFirebaseUser] = useState<any>(null);
+
+  // Listen to real-time updates for the user's Firestore document
+  useEffect(() => {
+    if (!firebaseUser) return;
+
+    const userDocRef = doc(db, 'users', firebaseUser.uid);
+    const unsubscribe = onSnapshot(userDocRef, (docSnap) => {
+      if (docSnap.exists()) {
+        const userData = docSnap.data();
+        setUser({
+          uid: firebaseUser.uid,
+          email: firebaseUser.email,
+          name: userData.name,
+          role: userData.role,
+          getIdToken: () => firebaseUser.getIdToken(),
+        });
+      }
+    });
+
+    return () => unsubscribe();
+  }, [firebaseUser]);
 
   useEffect(() => {
     console.log("Setting up onAuthStateChanged listener");
-    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
-      console.log("onAuthStateChanged triggered:", firebaseUser?.email);
-      if (firebaseUser) {
-        console.log("User found:", firebaseUser.uid);
-        const userDoc = await getDoc(doc(db, 'users', firebaseUser.uid));
+    const unsubscribe = onAuthStateChanged(auth, async (fbUser) => {
+      setFirebaseUser(fbUser);
+      
+      if (fbUser) {
+        console.log("User found:", fbUser.uid);
+        const userDoc = await getDoc(doc(db, 'users', fbUser.uid));
         let userData = userDoc.data();
         
         console.log("Firestore user data:", userData);
@@ -50,25 +74,24 @@ export function FirebaseAuthProvider({ children }: { children: React.ReactNode }
           const role = userCount === 0 ? 'Admin' : 'Member';
           
           userData = {
-            email: firebaseUser.email,
-            name: firebaseUser.email?.split('@')[0] || 'User',
+            email: fbUser.email,
+            name: fbUser.email?.split('@')[0] || 'User',
             role,
             createdAt: new Date().toISOString(),
           };
           
-          await setDoc(doc(db, 'users', firebaseUser.uid), userData);
+          await setDoc(doc(db, 'users', fbUser.uid), userData);
           await setDoc(doc(db, 'meta', 'counts'), { userCount: userCount + 1 });
         }
         
         setUser({
-          uid: firebaseUser.uid,
-          email: firebaseUser.email,
+          uid: fbUser.uid,
+          email: fbUser.email,
           name: userData.name,
           role: userData.role,
-          getIdToken: () => firebaseUser.getIdToken(),
+          getIdToken: () => fbUser.getIdToken(),
         });
       } else {
-        console.log("No user found");
         setUser(null);
       }
       setLoading(false);
@@ -78,20 +101,11 @@ export function FirebaseAuthProvider({ children }: { children: React.ReactNode }
   }, []);
 
   const login = async (email: string, password: string) => {
-    console.log("Login called for:", email);
-    try {
-      const result = await signInWithEmailAndPassword(auth, email, password);
-      console.log("Login successful:", result.user.email);
-    } catch (error) {
-      console.error("Login error:", error);
-      throw error;
-    }
+    await signInWithEmailAndPassword(auth, email, password);
   };
 
   const signup = async (email: string, password: string, name: string) => {
-    console.log("Signup called for:", email);
     const result = await createUserWithEmailAndPassword(auth, email, password);
-    console.log("Signup successful:", result.user.uid);
     
     const usersSnapshot = await getDoc(doc(db, 'meta', 'counts'));
     const userCount = usersSnapshot.exists() ? usersSnapshot.data()?.userCount || 0 : 0;
@@ -111,8 +125,24 @@ export function FirebaseAuthProvider({ children }: { children: React.ReactNode }
     await signOut(auth);
   };
 
+  const refreshUser = async () => {
+    if (firebaseUser) {
+      const userDoc = await getDoc(doc(db, 'users', firebaseUser.uid));
+      const userData = userDoc.data();
+      if (userData) {
+        setUser({
+          uid: firebaseUser.uid,
+          email: firebaseUser.email,
+          name: userData.name,
+          role: userData.role,
+          getIdToken: () => firebaseUser.getIdToken(),
+        });
+      }
+    }
+  };
+
   return (
-    <FirebaseAuthContext.Provider value={{ user, loading, login, signup, logout }}>
+    <FirebaseAuthContext.Provider value={{ user, loading, login, signup, logout, refreshUser }}>
       {children}
     </FirebaseAuthContext.Provider>
   );

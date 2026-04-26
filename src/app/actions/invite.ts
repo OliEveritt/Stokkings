@@ -1,0 +1,59 @@
+"use server";
+
+import { db } from "@/lib/firebase";
+import {
+  doc,
+  setDoc,
+  collection,
+  query,
+  where,
+  getDocs
+} from "firebase/firestore";
+import { v4 as uuidv4 } from "uuid";
+
+export async function createInvitation(email: string, groupId: string, adminId: string) {
+  try {
+    const normalizedEmail = email.toLowerCase().trim();
+
+    const memberQuery = query(
+      collection(db, "group_members"),
+      where("groupId", "==", groupId),
+      where("email", "==", normalizedEmail)
+    );
+
+    const memberSnapshot = await getDocs(memberQuery);
+
+    if (!memberSnapshot.empty) {
+      return {
+        success: false,
+        error: "This user is already a member of the group."
+      };
+    }
+
+    const token = uuidv4();
+
+    const expiresAt = new Date();
+    expiresAt.setDate(expiresAt.getDate() + 7);
+
+    await setDoc(doc(db, "invitations", token), {
+      email: normalizedEmail,
+      groupId: groupId,
+      invitedBy: adminId,
+      status: "pending",
+      expiresAt: expiresAt.toISOString(),
+      createdAt: new Date().toISOString(),
+    });
+
+    return {
+      success: true,
+      token: token,
+      expiresAt: expiresAt.toISOString()
+    };
+  } catch (error: any) {
+    console.error("Invitation Action Error:", error.message);
+    return {
+      success: false,
+      error: "System failed to generate invitation."
+    };
+  }
+}
