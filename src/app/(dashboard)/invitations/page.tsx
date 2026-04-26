@@ -1,16 +1,6 @@
-import { EmptyState } from "@/components/ui/EmptyState";
+import { redirect } from "next/navigation";
 
-export default function InvitationsPage() {
-  return (
-    <div>
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900 tracking-tight">Invitations</h1>
-        <p className="text-sm text-gray-500 mt-1">Invite new members to join the group.</p>
-      </div>
-      <EmptyState
-        title="Invitations content will be implemented here"
-        subtitle="Sprint backlog item — ready for development"
-      />
-    </div>
-  );
+export default function InvitationsRedirect() {
+  // Change this from "/dashboard" to your dynamic invite path
+  redirect("/groups/TestGroup/invite");
 }

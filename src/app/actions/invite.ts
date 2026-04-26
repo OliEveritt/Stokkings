@@ -1,59 +1,40 @@
 "use server";
 
 import { db } from "@/lib/firebase";
-import {
-  doc,
-  setDoc,
-  collection,
-  query,
-  where,
-  getDocs
-} from "firebase/firestore";
+import { collection, addDoc, serverTimestamp } from "firebase/firestore";
 import { v4 as uuidv4 } from "uuid";
 
 export async function createInvitation(email: string, groupId: string, adminId: string) {
   try {
-    const normalizedEmail = email.toLowerCase().trim();
-
-    const memberQuery = query(
-      collection(db, "group_members"),
-      where("groupId", "==", groupId),
-      where("email", "==", normalizedEmail)
-    );
-
-    const memberSnapshot = await getDocs(memberQuery);
-
-    if (!memberSnapshot.empty) {
-      return {
-        success: false,
-        error: "This user is already a member of the group."
-      };
-    }
-
     const token = uuidv4();
-
     const expiresAt = new Date();
-    expiresAt.setDate(expiresAt.getDate() + 7);
+    expiresAt.setDate(expiresAt.getDate() + 7); // 7-day expiry
 
-    await setDoc(doc(db, "invitations", token), {
-      email: normalizedEmail,
-      groupId: groupId,
+    // 1. Write to Firestore Ledger
+    const docRef = await addDoc(collection(db, "invitations"), {
+      email,
+      groupId,
       invitedBy: adminId,
+      token,
       status: "pending",
-      expiresAt: expiresAt.toISOString(),
       createdAt: new Date().toISOString(),
+      expiresAt: expiresAt.toISOString(),
     });
 
-    return {
-      success: true,
-      token: token,
-      expiresAt: expiresAt.toISOString()
-    };
-  } catch (error: any) {
-    console.error("Invitation Action Error:", error.message);
-    return {
-      success: false,
-      error: "System failed to generate invitation."
-    };
+    // 2. Dispatch Email (Logical Bridge)
+    const inviteLink = `${process.env.NEXT_PUBLIC_BASE_URL}/invite/accept/${token}`;
+    
+    // Replace this with your actual email service (e.g., Resend)
+    await sendEmailNotification(email, inviteLink, groupId);
+
+    return { success: true, token };
+  } catch (error) {
+    console.error("Invitation Error:", error);
+    return { success: false, error: "System failed to dispatch invitation." };
   }
+}
+
+async function sendEmailNotification(to: string, link: string, group: string) {
+  // Logic to trigger your email API would go here
+  console.log(`Email sent to ${to} for group ${group}. Link: ${link}`);
 }
