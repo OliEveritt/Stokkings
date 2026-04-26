@@ -3,7 +3,7 @@
 import { useState, useMemo, useCallback, useEffect } from "react";
 import {
   Home, Users, Calendar, BarChart3,
-  CreditCard, UserPlus, CircleDollarSign, ClipboardList,
+  CreditCard, UserPlus, CircleDollarSign, TrendingUp, ClipboardList,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 
@@ -27,6 +27,7 @@ const NAV: NavItem[] = [
   { id: "manage-contributions", label: "Manage Contributions", icon: ClipboardList, roles: ["Treasurer", "Admin"], path: "/manage-contributions" },
   { id: "members", label: "Members", icon: Users, roles: ["Admin"], path: "/members" },
   { id: "contributions", label: "My Contributions", icon: CreditCard, roles: ["Member", "Treasurer", "Admin"], path: "/contributions" },
+  { id: "savings-projection", label: "Savings Projection", icon: TrendingUp, roles: ["Member", "Treasurer", "Admin"], path: "/savings-projection" },
   { id: "create-group", label: "Create Group", icon: Users, roles: ["Admin"], path: "/create-group" },
   { id: "invitations", label: "Invitations", icon: UserPlus, roles: ["Admin"], path: "/invitations" },
 ];
