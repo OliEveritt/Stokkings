@@ -1,64 +1,26 @@
-import type { RateRepository } from "@/repositories/rate.repository";
-import type { Rates } from "@/types";
-
-interface SarbClient {
-  fetchSarbRates(): Promise<{ repo: number; prime: number }>;
+export interface RateData {
+  repo: number;
+  prime: number;
+  updatedAt: Date;
 }
 
-const STALE_THRESHOLD_MS = 24 * 60 * 60 * 1000; // 24 hours
-
 export class RateService {
-  constructor(
-    private repository: RateRepository,
-    private sarbClient: SarbClient
-  ) {}
-
-  async getLatestRates(): Promise<Rates> {
-    let cached: { repo: number; prime: number; updatedAt: Date } | null = null;
-
+  async getCurrentRates(): Promise<RateData> {
     try {
-      cached = await this.repository.findLatest();
-    } catch {
-      // DB unavailable — fall through to SARB fetch
+      const response = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/api/rates`);
+      const data = await response.json();
+      return {
+        repo: data.repo,
+        prime: data.prime,
+        updatedAt: new Date(),
+      };
+    } catch (error) {
+      console.error('Failed to fetch rates:', error);
+      return {
+        repo: 7.75,
+        prime: 11.25,
+        updatedAt: new Date(),
+      };
     }
-
-    const isFresh =
-      cached &&
-      Date.now() - cached.updatedAt.getTime() < STALE_THRESHOLD_MS;
-
-    if (cached && isFresh) {
-      return this.toRates(cached);
-    }
-
-    // Stale or missing — try fetching fresh rates
-    try {
-      const fresh = await this.sarbClient.fetchSarbRates();
-
-      // Attempt to cache, but don't fail if DB is down
-      try {
-        const saved = await this.repository.save(fresh);
-        return this.toRates(saved);
-      } catch {
-        return {
-          repo: fresh.repo,
-          prime: fresh.prime,
-          updated: new Date().toISOString(),
-        };
-      }
-    } catch {
-      // If we have stale data, return it as fallback
-      if (cached) {
-        return this.toRates(cached);
-      }
-      throw new Error("Unable to retrieve rates");
-    }
-  }
-
-  private toRates(record: { repo: number; prime: number; updatedAt: Date }): Rates {
-    return {
-      repo: record.repo,
-      prime: record.prime,
-      updated: record.updatedAt.toISOString(),
-    };
   }
 }

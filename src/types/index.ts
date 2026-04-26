@@ -25,7 +25,7 @@ export interface Rates {
 export interface NavItem {
   id: string;
   label: string;
-  icon: React.ComponentType<{ size?: number; className?: string }>;
+  icon: React.ComponentType<any>;
   roles: Role[];
   path: string;
 }

@@ -9,6 +9,7 @@ interface Member {
   email: string;
   role_name: string;
   group_id: number;
+  join_date: string;
 }
 
 export default function MemberTable({ members }: { members: Member[] }) {
