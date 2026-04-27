@@ -1,26 +1,32 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { useFirebaseAuth } from "@/context/FirebaseAuthContext";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 
-export default function LoginPage() {
+function LoginContent() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const { login, user } = useFirebaseAuth();
   const router = useRouter();
+  
+  // Use searchParams to detect if this login is part of an invitation flow
+  const searchParams = useSearchParams();
+  const token = searchParams.get("token");
 
-  // Log when user changes
+  // Log when user changes and handle redirects
   useEffect(() => {
-    console.log("LoginPage: user changed:", user?.email, user?.role);
     if (user) {
-      console.log("LoginPage: redirecting to dashboard");
+      console.log("LoginPage: User authenticated, checking destination...");
+      
+      // If there is no token, go to the standard dashboard
+      // Using window.location.href forces a clean state reload for the Stokvel Ledger
       window.location.href = "/dashboard";
     }
-  }, [user, router]);
+  }, [user]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -28,71 +34,87 @@ export default function LoginPage() {
     setLoading(true);
 
     try {
-      console.log("LoginPage: calling login for", email);
+      console.log("LoginPage: Attempting login for", email);
       await login(email, password);
-      console.log("LoginPage: login completed");
-      // useEffect will handle redirect when user state updates
+      
+      // If a token exists, we don't need to do extra logic here because 
+      // the 'AcceptInvitationPage' already updated the Firestore ledger 
+      // or set the session state.
     } catch (err: any) {
-      console.error("LoginPage: login error", err);
+      console.error("LoginPage: Auth Error", err);
       setError(err.message || "Invalid email or password");
       setLoading(false);
     }
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gray-50 p-4">
-      <div className="w-full max-w-md space-y-8 rounded-2xl bg-white p-8 shadow-xl border border-gray-100">
+    <div className="flex min-h-screen items-center justify-center bg-gray-50 p-4 font-sans">
+      <div className="w-full max-w-md space-y-8 rounded-[2.5rem] bg-white p-10 shadow-2xl border border-gray-100">
         <div className="text-center">
-          <h2 className="text-3xl font-bold text-gray-900 tracking-tight">Stokkings</h2>
-          <p className="mt-2 text-sm text-gray-500">Access your secure portal</p>
+          <h2 className="text-4xl font-black text-gray-900 tracking-tighter">Stokkings</h2>
+          <p className="mt-2 text-sm text-gray-500 font-medium">
+            {token ? "Sign in to claim your invitation" : "Access your secure portal"}
+          </p>
         </div>
 
         {error && (
-          <div className="rounded-md bg-red-50 p-3 text-sm text-red-600 border border-red-100">
+          <div className="rounded-2xl bg-rose-50 p-4 text-xs font-bold text-rose-600 border border-rose-100 animate-in shake-in">
             {error}
           </div>
         )}
 
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} className="space-y-5">
           <div>
-            <label className="block text-xs font-bold text-gray-700 uppercase ml-1">Email Address</label>
+            <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1 mb-1">Email Address</label>
             <input 
-              name="email" 
               type="email" 
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required 
-              className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:ring-emerald-500 outline-none" 
+              placeholder="name@wits.ac.za"
+              className="block w-full rounded-2xl border border-gray-200 bg-gray-50 px-4 py-4 text-sm focus:bg-white focus:ring-2 focus:ring-emerald-500 outline-none transition-all" 
             />
           </div>
           
           <div>
-            <label className="block text-xs font-bold text-gray-700 uppercase ml-1">Password</label>
+            <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1 mb-1">Password</label>
             <input 
-              name="password" 
               type="password" 
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required 
-              className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:ring-emerald-500 outline-none" 
+              placeholder="••••••••"
+              className="block w-full rounded-2xl border border-gray-200 bg-gray-50 px-4 py-4 text-sm focus:bg-white focus:ring-2 focus:ring-emerald-500 outline-none transition-all" 
             />
           </div>
 
           <button 
             type="submit" 
             disabled={loading}
-            className="w-full rounded-lg bg-emerald-600 px-4 py-3 text-white font-bold hover:bg-emerald-700 transition-all shadow-lg mt-4 active:scale-[0.98] disabled:opacity-50"
+            className="w-full rounded-2xl bg-emerald-600 px-4 py-5 text-white font-black text-sm hover:bg-emerald-700 transition-all shadow-xl shadow-emerald-600/20 mt-4 active:scale-[0.97] disabled:opacity-50"
           >
-            {loading ? "Signing In..." : "Sign In"}
+            {loading ? "Syncing Identity..." : "Sign In"}
           </button>
         </form>
 
-        <div className="text-center pt-4 border-t border-gray-100">
-          <Link href="/sign-up" className="text-sm font-medium text-emerald-600 hover:text-emerald-700">
-            Need an account? Sign Up
+        <div className="text-center pt-6 border-t border-gray-50">
+          <Link 
+            href={token ? `/sign-up?token=${token}` : "/sign-up"} 
+            className="text-xs font-bold text-emerald-600 hover:text-emerald-700 uppercase tracking-widest"
+          >
+            {token ? "New here? Create Account" : "Need a vault? Sign Up"}
           </Link>
         </div>
       </div>
     </div>
+  );
+}
+
+// Wrap in Suspense because useSearchParams() requires it in Next.js App Router
+export default function LoginPage() {
+  return (
+    <Suspense fallback={<div className="h-screen flex items-center justify-center">Loading Secure Portal...</div>}>
+      <LoginContent />
+    </Suspense>
   );
 }
