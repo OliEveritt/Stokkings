@@ -1,0 +1,21 @@
+name: Sprint Audit Pipeline
+on: [push, pull_request]
+
+jobs:
+  verify-ledger:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      
+      - name: Install Dependencies
+        run: npm ci
+
+      - name: Run Sprint 2 Unit Tests & Coverage
+        run: npx vitest run --coverage tests/unit/sprint2_audit.test.ts
+        
+      - name: Verify Security Integration
+        run: npx vitest run tests/integration/security_audit.test.ts

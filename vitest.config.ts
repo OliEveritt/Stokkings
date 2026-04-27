@@ -1,12 +1,14 @@
 import { defineConfig } from 'vitest/config';
+<<<<<<< HEAD
 import react from '@vitejs/plugin-react';
+=======
+>>>>>>> 10-us-26-view-and-manage-payout-schedule
 import path from 'path';
 
 export default defineConfig({
-  plugins: [react()],
   test: {
-    environment: 'jsdom',
     globals: true,
+<<<<<<< HEAD
     setupFiles: ['./tests/setup.ts'],
     // 🛡️ Add these exclusions to prevent Vitest from touching Playwright files
     exclude: [
@@ -22,6 +24,10 @@ export default defineConfig({
       // Only include your actual source code in the coverage report
       include: ['src/**/*.ts', 'src/**/*.tsx'], 
     },
+=======
+    environment: 'jsdom',
+    setupFiles: './tests/setup.ts',
+>>>>>>> 10-us-26-view-and-manage-payout-schedule
     alias: {
       '@': path.resolve(__dirname, './src'),
     },
