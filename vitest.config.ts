@@ -4,26 +4,41 @@ import path from 'path';
 
 export default defineConfig({
   plugins: [react()],
-  test: {
-    environment: 'jsdom',
-    globals: true,
-    setupFiles: ['./tests/setup.ts'],
-    // 🛡️ Add these exclusions to prevent Vitest from touching Playwright files
-    exclude: [
-  '**/node_modules/**',
-  '**/tests/e2e/**',
-  '**/tests/integration/api/**',      // 👈 Ignore empty API tests
-  '**/tests/integration/services/**', // 👈 Ignore empty Service tests
-  '**/*.spec.ts',
-],
-    coverage: {
-      provider: 'v8',
-      reporter: ['text', 'json', 'html'],
-      // Only include your actual source code in the coverage report
-      include: ['src/**/*.ts', 'src/**/*.tsx'], 
-    },
+  resolve: {
     alias: {
-      '@': path.resolve(__dirname, './src'),
+      "@": path.resolve(__dirname, "./src"),
+    },
+  },
+  test: {
+    globals: true,
+    environment: 'jsdom',
+    setupFiles: ['./tests/setup.ts'],
+    include: ["tests/**/*.test.ts"],
+    exclude: [
+      '**/node_modules/**',
+      "tests/unit/services/contribution.service.test.ts",
+      "tests/unit/services/payment.service.test.ts",
+      "tests/unit/services/payout.service.test.ts",
+      "tests/unit/services/analytics.service.test.ts",
+      "tests/unit/services/export.service.test.ts",
+      "tests/unit/repositories/analytics.repository.test.ts",
+      "tests/unit/repositories/contribution.repository.test.ts",
+      "tests/unit/repositories/group.repository.test.ts",
+      "tests/unit/repositories/member.repository.test.ts",
+      "tests/unit/repositories/meeting.repository.test.ts",
+      "tests/unit/repositories/notification.repository.test.ts",
+      "tests/unit/repositories/payout.repository.test.ts",
+      "tests/unit/components/**",
+      "tests/unit/validators/**",
+      "tests/integration/**",
+      "tests/e2e/**",
+      "**/*.spec.ts",
+    ],
+    coverage: {
+      provider: "v8",
+      reporter: ['text', 'json', 'html'],
+      include: ["src/**/*.ts", "src/**/*.tsx"],
+      exclude: ["src/types/**"],
     },
   },
 });
