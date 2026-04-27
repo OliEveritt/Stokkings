@@ -1,7 +1,9 @@
 import { defineConfig } from 'vitest/config';
+import react from '@vitejs/plugin-react';
 import path from 'path';
 
 export default defineConfig({
+  plugins: [react()],
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
@@ -9,9 +11,11 @@ export default defineConfig({
   },
   test: {
     globals: true,
-    environment: "node",
+    environment: 'jsdom',
+    setupFiles: ['./tests/setup.ts'],
     include: ["tests/**/*.test.ts"],
     exclude: [
+      '**/node_modules/**',
       "tests/unit/services/contribution.service.test.ts",
       "tests/unit/services/payment.service.test.ts",
       "tests/unit/services/payout.service.test.ts",
@@ -28,11 +32,13 @@ export default defineConfig({
       "tests/unit/validators/**",
       "tests/integration/**",
       "tests/e2e/**",
+      "**/*.spec.ts",
     ],
     coverage: {
       provider: "v8",
-      include: ["src/**/*.ts"],
-      exclude: ["src/types/**", "src/app/**/*.tsx", "src/components/**/*.tsx"],
+      reporter: ['text', 'json', 'html'],
+      include: ["src/**/*.ts", "src/**/*.tsx"],
+      exclude: ["src/types/**"],
     },
   },
 });

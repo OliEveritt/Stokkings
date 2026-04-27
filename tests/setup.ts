@@ -1,27 +1,35 @@
-import '@testing-library/jest-dom/vitest';
-import { vi } from 'vitest';
+import '@testing-library/jest-dom';
+import { cleanup } from '@testing-library/react';
+import { afterEach, vi } from 'vitest';
 
-// Mock Next.js navigation
+// 1. Reset the DOM after each test to prevent memory leaks or state overlap
+afterEach(() => {
+  cleanup();
+});
+
+// 2. Mock the Next.js Navigation (Crucial for testing the 'Enter Dashboard' redirect)
 vi.mock('next/navigation', () => ({
   useRouter: () => ({
     push: vi.fn(),
     replace: vi.fn(),
-    back: vi.fn(),
+    prefetch: vi.fn(),
   }),
-  useSearchParams: () => new URLSearchParams(),
-  usePathname: () => '/',
+  useSearchParams: () => ({
+    get: vi.fn(),
+  }),
 }));
 
-// Mock Firebase
-vi.mock('@/lib/firebase', () => ({
-  auth: {},
-  db: {},
-  app: {},
-}));
-
-vi.mock('@/lib/firebase-admin', () => ({
-  adminDb: {
-    collection: vi.fn(),
-  },
-  adminAuth: {},
-}));
+// 3. Mock window.matchMedia (Required if you use certain Tailwind/UI components)
+Object.defineProperty(window, 'matchMedia', {
+  writable: true,
+  value: vi.fn().mockImplementation(query => ({
+    matches: false,
+    media: query,
+    onchange: null,
+    addListener: vi.fn(), 
+    removeListener: vi.fn(),
+    addEventListener: vi.fn(),
+    removeEventListener: vi.fn(),
+    dispatchEvent: vi.fn(),
+  })),
+});
