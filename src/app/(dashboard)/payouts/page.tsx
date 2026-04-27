@@ -1,3 +1,4 @@
+<<<<<<< Updated upstream
 "use client";
 
 import { useEffect, useState } from "react";
@@ -63,6 +64,21 @@ export default function PayoutSchedulePage() {
           isTreasurer={user?.role === "Admin" || user?.role === "Treasurer"} 
         />
       )}
+=======
+import PayoutSchedule from "@/components/payouts/PayoutSchedule";
+
+export default function PayoutsPage() {
+  // In your real app, pull these from your Auth Context/Session
+  const currentGroupId = "stokvel_alpha_2026"; 
+  const currentUserRole = "Admin"; 
+
+  return (
+    <div className="min-h-screen bg-[#FDFDFD] p-10">
+      <PayoutSchedule 
+        groupId={currentGroupId} 
+        userRole={currentUserRole} 
+      />
+>>>>>>> Stashed changes
     </div>
   );
 }

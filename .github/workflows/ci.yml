@@ -6,6 +6,7 @@ name: Stokkings CI/CD
 
 on:
   push:
+<<<<<<< Updated upstream
     branches: [main, develop]
   pull_request:
     branches: [main, develop]
@@ -23,10 +24,25 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+=======
+    branches: [ main, develop ] # 👈 Protects both branches
+  pull_request:
+    branches: [ main, develop ]
+
+jobs:
+  audit:
+    name: Financial Integrity & Test Audit
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+>>>>>>> Stashed changes
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
+<<<<<<< Updated upstream
           node-version: ${{ env.NODE_VERSION }}
           cache: "npm"
 
@@ -95,3 +111,20 @@ jobs:
         with:
           name: playwright-report
           path: playwright-report/
+=======
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install Dependencies
+        run: npm ci
+
+      - name: Run Test Suite (32 Passed)
+        run: npm run test
+
+      - name: Verify Code Coverage (Threshold 50%)
+        # This ensures you hit the 'Excellent' mark for TDD
+        run: npx vitest run --coverage --threshold 50
+
+      - name: Production Build Check
+        run: npm run build
+>>>>>>> Stashed changes
