@@ -2,10 +2,11 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { addDoc, collection, getDocs, query, where } from "firebase/firestore";
+import { getDocs, query, where, collection } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useFirebaseAuth } from "@/context/FirebaseAuthContext";
 import { validateMeeting } from "@/validators/meeting.validator";
+import { createMeeting } from "@/services/meeting.service";
 
 interface Group {
   id: string;
@@ -84,15 +85,14 @@ export function ScheduleMeetingForm() {
 
     setSubmitting(true);
     try {
-      await addDoc(collection(db, "meetings"), {
+      await createMeeting({
         groupId,
         groupName: selectedGroup?.group_name ?? "",
         date,
         time,
-        agenda: agenda.trim(),
+        agenda,
         createdBy: user!.uid,
-        createdByName: user!.name,
-        createdAt: new Date().toISOString(),
+        createdByName: user!.name ?? "",
       });
       router.push("/meetings");
     } catch (err) {
@@ -104,8 +104,90 @@ export function ScheduleMeetingForm() {
   };
 
   return (
-    <div className="bg-white rounded-xl border border-gray-200 p-6">
-      <p className="text-sm text-gray-400">Schedule meeting form — pending implementation</p>
-    </div>
+    <form onSubmit={handleSubmit} className="bg-white rounded-xl border border-gray-200 p-6 space-y-5">
+      <h2 className="text-lg font-semibold text-gray-900">Schedule a Meeting</h2>
+
+      {serverError && (
+        <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-4 py-2">
+          {serverError}
+        </p>
+      )}
+
+      {/* Group */}
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-1">Group</label>
+        {groupsLoading ? (
+          <p className="text-sm text-gray-400">Loading groups…</p>
+        ) : (
+          <select
+            value={groupId}
+            onChange={(e) => setGroupId(e.target.value)}
+            className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+          >
+            <option value="">Select a group</option>
+            {groups.map((g) => (
+              <option key={g.id} value={g.id}>
+                {g.group_name}
+              </option>
+            ))}
+          </select>
+        )}
+        {fieldErrors.groupId && (
+          <p className="mt-1 text-xs text-red-500">{fieldErrors.groupId}</p>
+        )}
+      </div>
+
+      {/* Date */}
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-1">Date</label>
+        <input
+          type="date"
+          min={today}
+          value={date}
+          onChange={(e) => setDate(e.target.value)}
+          className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+        />
+        {fieldErrors.date && (
+          <p className="mt-1 text-xs text-red-500">{fieldErrors.date}</p>
+        )}
+      </div>
+
+      {/* Time */}
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-1">Time</label>
+        <input
+          type="time"
+          value={time}
+          onChange={(e) => setTime(e.target.value)}
+          className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+        />
+        {fieldErrors.time && (
+          <p className="mt-1 text-xs text-red-500">{fieldErrors.time}</p>
+        )}
+      </div>
+
+      {/* Agenda */}
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-1">Agenda</label>
+        <textarea
+          rows={4}
+          value={agenda}
+          onChange={(e) => setAgenda(e.target.value)}
+          placeholder="Describe the purpose of this meeting (min. 10 characters)"
+          className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+        />
+        {fieldErrors.agenda && (
+          <p className="mt-1 text-xs text-red-500">{fieldErrors.agenda}</p>
+        )}
+      </div>
+
+      <button
+        type="submit"
+        disabled={submitting || groupsLoading}
+        className="w-full rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+      >
+        {submitting ? "Scheduling…" : "Schedule Meeting"}
+      </button>
+    </form>
   );
 }
