@@ -2,6 +2,7 @@
 
 import { X, Shield, ChevronRight } from "lucide-react";
 import type { NavItem, Rates } from "@/types";
+import Link from "next/link";
 
 interface SidebarProps {
   items: NavItem[];
@@ -29,7 +30,7 @@ function SidebarContent({
 }) {
   return (
     <>
-      {/* 1. Header & Logo Section */}
+      {/* 1.er & Logo Section */}
       <div className="flex items-center justify-between px-5 h-16 border-b border-gray-100">
         <div className="flex items-center gap-2.5">
           <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center shadow-sm">
@@ -53,27 +54,48 @@ function SidebarContent({
         </p>
         <div className="space-y-0.5">
           {items.map((item) => {
-            const Icon = item.icon;
-            const isActive = item.id === active;
-            return (
-              <button
-                key={item.id}
-                onClick={() => {
-                  onNav(item.id);
-                  onClose?.();
-                }}
-                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all ${
-                  isActive
-                    ? "bg-emerald-50 text-emerald-700 shadow-sm"
-                    : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
-                }`}
-              >
-                <Icon size={18} className={isActive ? "text-emerald-600" : "text-gray-400"} />
-                <span className="flex-1 text-left">{item.label}</span>
-                {isActive && <ChevronRight size={14} className="text-emerald-400" />}
-              </button>
-            );
-          })}
+  const Icon = item.icon;
+  const isActive = item.id === active;
+
+  // SPECIAL CASE: Redirect Invitations to the Dynamic Route
+  if (item.id === "invitations") {
+    return (
+      <Link
+        key={item.id}
+        href="/groups/TestGroup/invite" // Points to your new dynamic implementation
+        className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all ${
+          isActive
+            ? "bg-emerald-50 text-emerald-700 shadow-sm"
+            : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
+        }`}
+      >
+        <Icon size={18} className={isActive ? "text-emerald-600" : "text-gray-400"} />
+        <span className="flex-1 text-left">{item.label}</span>
+        {isActive && <ChevronRight size={14} className="text-emerald-400" />}
+      </Link>
+    );
+  }
+
+  // DEFAULT CASE: Use the existing onNav logic for everything else
+  return (
+    <button
+      key={item.id}
+      onClick={() => {
+        onNav(item.id);
+        onClose?.();
+      }}
+      className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all ${
+        isActive
+          ? "bg-emerald-50 text-emerald-700 shadow-sm"
+          : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
+      }`}
+    >
+      <Icon size={18} className={isActive ? "text-emerald-600" : "text-gray-400"} />
+      <span className="flex-1 text-left">{item.label}</span>
+      {isActive && <ChevronRight size={14} className="text-emerald-400" />}
+    </button>
+  );
+})}
         </div>
       </nav>
 
