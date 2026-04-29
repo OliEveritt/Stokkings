@@ -28,7 +28,7 @@ export default function PayoutScheduleTable({
     try {
       const response = await fetch('/api/payouts', {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
+       ers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           updates: [
             { id: itemA.id, newPosition: itemB.position },

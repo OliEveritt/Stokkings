@@ -30,7 +30,7 @@ function SidebarContent({
 }) {
   return (
     <>
-      {/* 1. Header & Logo Section */}
+      {/* 1.er & Logo Section */}
       <div className="flex items-center justify-between px-5 h-16 border-b border-gray-100">
         <div className="flex items-center gap-2.5">
           <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center shadow-sm">

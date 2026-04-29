@@ -1,7 +1,8 @@
-<<<<<<< HEAD
+
 "use client";
 import { useEffect, useState } from "react";
 import { subscribeToPayouts, PayoutMember } from "@/services/payout.service";
+import { useActiveGroup } from "@/context/GroupContext";
 
 export default function PayoutsPage() {
   const [payouts, setPayouts] = useState<PayoutMember[]>([]);
@@ -48,8 +49,8 @@ export default function PayoutsPage() {
           </tbody>
         </table>
       </div>
-=======
-<<<<<<< Updated upstream
+
+ Updated upstream
 "use client";
 
 import { useEffect, useState } from "react";
@@ -115,7 +116,7 @@ export default function PayoutSchedulePage() {
           isTreasurer={user?.role === "Admin" || user?.role === "Treasurer"} 
         />
       )}
-=======
+
 import PayoutSchedule from "@/components/payouts/PayoutSchedule";
 
 export default function PayoutsPage() {
@@ -129,8 +130,8 @@ export default function PayoutsPage() {
         groupId={currentGroupId} 
         userRole={currentUserRole} 
       />
->>>>>>> Stashed changes
->>>>>>> 10-us-26-view-and-manage-payout-schedule
+ Stashed changes
+ 10-us-26-view-and-manage-payout-schedule
     </div>
   );
 }

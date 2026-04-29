@@ -23,7 +23,7 @@ interface ApiNinjasResponse {
 
 export async function fetchSarbRates(): Promise<SarbRates> {
   const response = await fetch(API_NINJAS_URL, {
-    headers: { "X-Api-Key": API_KEY },
+   ers: { "X-Api-Key": API_KEY },
   });
 
   if (!response.ok) {

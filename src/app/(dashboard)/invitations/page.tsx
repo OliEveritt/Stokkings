@@ -1,10 +1,10 @@
-<<<<<<< HEAD
+
 import { redirect } from "next/navigation";
 
 export default function InvitationsRedirect() {
   // Change this from "/dashboard" to your dynamic invite path
   redirect("/groups/TestGroup/invite");
-=======
+
 "use client";
 
 import { InviteMemberForm } from "@/app/(auth)/invite/InviteForm";
@@ -50,5 +50,4 @@ export default function InvitationsPage() {
       </div>
     </div>
   );
->>>>>>> 10-us-26-view-and-manage-payout-schedule
-}
+ 

@@ -3,14 +3,14 @@
 import { useEffect, useState } from "react";
 import { db } from "@/lib/firebase";
 import { collection, query, where, onSnapshot } from "firebase/firestore";
-<<<<<<< HEAD
+
 import { Clock } from "lucide-react";
 
 export default function PendingInvites({ groupId }: { groupId: string }) {
   const [invites, setInvites] = useState<any[]>([]);
 
   useEffect(() => {
-=======
+
 import { Clock, Mail } from "lucide-react";
 
 interface PendingInvitesProps {
@@ -25,14 +25,14 @@ export default function PendingInvites({ groupId }: PendingInvitesProps) {
     if (!groupId) return;
 
     // Filter by the specific group and only show pending invites for the audit trail
->>>>>>> 80825cc
+ 80825cc
     const q = query(
       collection(db, "invitations"),
       where("groupId", "==", groupId),
       where("status", "==", "pending")
     );
 
-<<<<<<< HEAD
+
     return onSnapshot(q, (snapshot) => {
       setInvites(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
     });
@@ -55,7 +55,7 @@ export default function PendingInvites({ groupId }: PendingInvitesProps) {
           </div>
         ))}
       </div>
-=======
+
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
       setInvites(data);
@@ -85,7 +85,7 @@ export default function PendingInvites({ groupId }: PendingInvitesProps) {
           </div>
         ))
       )}
->>>>>>> 80825cc
+ 80825cc
     </div>
   );
 }

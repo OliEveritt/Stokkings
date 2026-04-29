@@ -2,7 +2,7 @@ import { ReactNode } from "react";
 
 interface Column<T> {
   key: string;
-  header: string;
+ er: string;
   render?: (row: T) => ReactNode;
 }
 

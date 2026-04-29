@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { createInvitation } from "@/app/actions/invite";
-<<<<<<< HEAD
+
 import { Send, Copy, Check } from "lucide-react";
 
 export default function InviteForm({ groupId, adminId }: { groupId: string; adminId: string }) {
@@ -66,7 +66,7 @@ export default function InviteForm({ groupId, adminId }: { groupId: string; admi
           <button onClick={copyToClipboard} className="p-2 hover:bg-emerald-100 rounded-lg transition-colors">
             {copied ? <Check size={18} className="text-emerald-600" /> : <Copy size={18} className="text-emerald-600" />}
           </button>
-=======
+
 import { Send, Link as LinkIcon, AlertCircle, CheckCircle2 } from "lucide-react";
 
 // Interface for props so we don't use Mock IDs
@@ -153,7 +153,7 @@ export function InviteMemberForm({ groupId, adminId }: InviteFormProps) {
               <LinkIcon size={14} className="text-emerald-600" />
             </button>
           </div>
->>>>>>> 80825cc
+ 80825cc
         </div>
       )}
     </div>

@@ -1,4 +1,4 @@
-<<<<<<< HEAD
+
 ﻿import { NextResponse } from "next/server";
 import { fetchSarbRates } from "@/lib/sarb-client";
 
@@ -14,7 +14,7 @@ export async function GET() {
   } catch (error) {
     console.error("Rate fetch error:", error);
 
-=======
+
 ﻿import { NextResponse } from 'next/server';
 import { rateService } from '@/services/rate.service';
 
@@ -30,7 +30,7 @@ export async function GET() {
   } catch (error) {
     console.error('Rate API error:', error);
     
->>>>>>> 80825cc
+ 80825cc
     return NextResponse.json({
       repo: 7.75,
       prime: 11.25,
