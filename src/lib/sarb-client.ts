@@ -1,4 +1,4 @@
-﻿const API_NINJAS_URL =
+const API_NINJAS_URL =
   "https://api.api-ninjas.com/v1/interestrate?country=South_Africa";
 
 const API_KEY = process.env.API_NINJAS_KEY ?? "";
@@ -23,7 +23,7 @@ interface ApiNinjasResponse {
 
 export async function fetchSarbRates(): Promise<SarbRates> {
   const response = await fetch(API_NINJAS_URL, {
-   ers: { "X-Api-Key": API_KEY },
+   headers: { "X-Api-Key": API_KEY },
   });
 
   if (!response.ok) {

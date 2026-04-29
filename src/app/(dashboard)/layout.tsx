@@ -7,7 +7,7 @@ import {
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 
-importer from "@/components/layout/Header";
+import Header from "@/components/layout/Header";
 import Sidebar from "@/components/layout/Sidebar";
 import RatesBanner from "@/components/layout/RatesBanner";
 import { useRates } from "@/hooks/useRates";

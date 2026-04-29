@@ -14,14 +14,14 @@ export class RateService {
       return cachedRates;
     }
 
-    // Try to get from Firestore history (latest)
+    // Try to get from stored repository (latest)
     const latestFromDb = await rateRepository.findLatest();
     
-    // If we have a recent record in DB (less than 1 hour old), use it
+    // If we have a recent record (less than 1 hour old), use it
     if (latestFromDb && latestFromDb.fetchedAt) {
       const dbAge = Date.now() - latestFromDb.fetchedAt.getTime();
       if (dbAge < CACHE_DURATION) {
-        console.log('Returning rates from Firestore history');
+        console.log('Returning rates from stored history');
         cachedRates = {
           repo: latestFromDb.repoRate,
           prime: latestFromDb.primeRate,
@@ -36,7 +36,7 @@ export class RateService {
     console.log('Fetching fresh rates from API Ninjas');
     const freshRates = await fetchSarbRates();
     
-    // Save to Firestore for history
+    // Save to repository for history
     await rateRepository.save({
       repo: freshRates.repo,
       prime: freshRates.prime,

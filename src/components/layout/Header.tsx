@@ -11,7 +11,7 @@ interface Mandate {
   role_name: string;
 }
 
-interfaceerProps {
+interface HeaderProps {
   user: User & { group_id?: number };
   groupName: string;
   activeLabel: string;
@@ -23,12 +23,12 @@ interfaceerProps {
   onOpenMobileSidebar: () => void;
 }
 
-export default functioner({ 
+export default function Header({ 
   user, 
   groupName, 
   activeLabel, 
   onOpenMobileSidebar,
-}:erProps) {
+}: HeaderProps) {
   const { logout } = useFirebaseAuth();
   const router = useRouter();
 
