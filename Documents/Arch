@@ -1,0 +1,41 @@
+@startuml
+skinparam handwritten false
+skinparam monochrome true
+skinparam packageStyle rectangle
+skinparam shadowing false
+
+title Stokkings System Architecture (Sprint 2)
+
+actor "Admin/Treasurer" as Admin
+actor "Member" as Member
+
+package "Next.js Frontend (Vercel)" {
+    component "Admin Dashboard" as AdminDash
+    component "Payout Table" as PayoutUI
+    component "Invite Acceptance Page" as AcceptUI
+    component "Server Actions" as Actions
+}
+
+database "Firebase Firestore" {
+    folder "Ledger Collections" {
+        [Groups]
+        [Invitations]
+        [Payout Schedules]
+    }
+}
+
+Admin --> AdminDash : Manages Members
+Member --> AcceptUI : Clicks Invite Link
+
+AdminDash --> Actions : createInvitation()
+PayoutUI --> Actions : updatePayoutOrder()
+AcceptUI --> Actions : settleInvitation()
+
+Actions --> [Invitations] : Atomic Write (UUID + TTL)
+Actions --> [Groups] : arrayUnion(userId)
+Actions --> [Payout Schedules] : writeBatch()
+
+[Invitations] ..> AdminDash : onSnapshot (Real-time Audit)
+[Payout Schedules] ..> PayoutUI : query (orderBy position)
+
+@enduml

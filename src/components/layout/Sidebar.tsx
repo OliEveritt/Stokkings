@@ -1,153 +1,82 @@
 "use client";
 
 import { X, Shield, ChevronRight } from "lucide-react";
-import type { NavItem, Rates } from "@/types";
 import Link from "next/link";
+import type { NavItem, Rates } from "@/types";
 
 interface SidebarProps {
   items: NavItem[];
   active: string;
   onNav: (id: string) => void;
   rates: Rates;
+  currentGroupId: string;
   mobile?: boolean;
   onClose?: () => void;
 }
 
-function SidebarContent({
-  items,
-  active,
-  onNav,
-  rates,
-  onClose,
-  showClose,
-}: {
-  items: NavItem[];
-  active: string;
-  onNav: (id: string) => void;
-  rates: Rates;
-  onClose?: () => void;
-  showClose?: boolean;
-}) {
+function SidebarContent({ items, active, onNav, rates, currentGroupId, onClose, showClose }: any) {
   return (
     <>
-      {/* 1.er & Logo Section */}
       <div className="flex items-center justify-between px-5 h-16 border-b border-gray-100">
-        <div className="flex items-center gap-2.5">
-          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center shadow-sm">
-            <Shield size={16} className="text-white" />
-          </div>
-          <span className="font-bold text-gray-800 text-base tracking-tight">
-            Stokkings
-          </span>
+        <div className="flex items-center gap-2">
+          <Shield className="text-emerald-600" size={20} />
+          <span className="font-bold text-gray-800">Stokkings</span>
         </div>
-        {showClose && (
-          <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-gray-100">
-            <X size={20} className="text-gray-500" />
-          </button>
-        )}
+        {showClose && <button onClick={onClose}><X size={20} /></button>}
       </div>
 
-      {/* 2. Primary Navigation Ledger */}
-      <nav className="flex-1 overflow-y-auto py-4 px-3">
-        <p className="px-3 mb-2 text-[10px] font-semibold text-gray-400 uppercase tracking-widest">
-          Navigation
-        </p>
-        <div className="space-y-0.5">
-          {items.map((item) => {
-  const Icon = item.icon;
-  const isActive = item.id === active;
+      <nav className="flex-1 py-4 px-3 space-y-1">
+        {items.map((item: NavItem) => {
+          const Icon = item.icon;
+          const isActive = item.id === active;
 
-  // SPECIAL CASE: Redirect Invitations to the Dynamic Route
-  if (item.id === "invitations") {
-    return (
-      <Link
-        key={item.id}
-        href="/groups/TestGroup/invite" // Points to your new dynamic implementation
-        className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all ${
-          isActive
-            ? "bg-emerald-50 text-emerald-700 shadow-sm"
-            : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
-        }`}
-      >
-        <Icon size={18} className={isActive ? "text-emerald-600" : "text-gray-400"} />
-        <span className="flex-1 text-left">{item.label}</span>
-        {isActive && <ChevronRight size={14} className="text-emerald-400" />}
-      </Link>
-    );
-  }
+          if (item.id === "invitations") {
+            return (
+              <Link
+                key={item.id}
+                href={`/groups/${currentGroupId}/invite`}
+                className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium ${
+                  isActive ? "bg-emerald-50 text-emerald-700" : "text-gray-600 hover:bg-gray-50"
+                }`}
+              >
+                <Icon size={18} />
+                <span className="flex-1">{item.label}</span>
+              </Link>
+            );
+          }
 
-  // DEFAULT CASE: Use the existing onNav logic for everything else
-  return (
-    <button
-      key={item.id}
-      onClick={() => {
-        onNav(item.id);
-        onClose?.();
-      }}
-      className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all ${
-        isActive
-          ? "bg-emerald-50 text-emerald-700 shadow-sm"
-          : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
-      }`}
-    >
-      <Icon size={18} className={isActive ? "text-emerald-600" : "text-gray-400"} />
-      <span className="flex-1 text-left">{item.label}</span>
-      {isActive && <ChevronRight size={14} className="text-emerald-400" />}
-    </button>
-  );
-})}
-        </div>
+          return (
+            <button
+              key={item.id}
+              onClick={() => onNav(item.id)}
+              className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium ${
+                isActive ? "bg-emerald-50 text-emerald-700" : "text-gray-600 hover:bg-gray-50"
+              }`}
+            >
+              <Icon size={18} />
+              <span className="flex-1 text-left">{item.label}</span>
+            </button>
+          );
+        })}
       </nav>
-
-      {/* 3. Economic Indicators (Rates) */}
-      <div className="px-4 py-4 border-t border-gray-100">
-        <div className="bg-gradient-to-br from-emerald-50 to-teal-50 rounded-xl p-3.5 border border-emerald-100">
-          <p className="text-xs font-semibold text-emerald-800 mb-1">
-            SA Interest Rates
-          </p>
-          <div className="flex justify-between text-xs text-emerald-700">
-            <span>Repo: <strong>{rates.repo}%</strong></span>
-            <span>Prime: <strong>{rates.prime}%</strong></span>
-          </div>
-          <p className="text-[10px] text-emerald-500 mt-1.5">
-            SARB &middot; Updated {rates.updated}
-          </p>
-        </div>
-      </div>
     </>
   );
 }
 
-// THE MAIN EXPORT (Default)
-export default function Sidebar({
-  items,
-  active,
-  onNav,
-  rates,
-  mobile,
-  onClose,
-}: SidebarProps) {
-  if (mobile) {
+export default function Sidebar(props: SidebarProps) {
+  if (props.mobile) {
     return (
       <div className="fixed inset-0 z-50 flex lg:hidden">
-        <div className="fixed inset-0 bg-gray-900/40 backdrop-blur-sm" onClick={onClose} />
-        <div className="relative w-72 max-w-[80vw] bg-white flex flex-col h-full shadow-2xl z-50 animate-in slide-in-from-left duration-300">
-          <SidebarContent
-            items={items}
-            active={active}
-            onNav={onNav}
-            rates={rates}
-            onClose={onClose}
-            showClose
-          />
+        <div className="fixed inset-0 bg-gray-900/40" onClick={props.onClose} />
+        <div className="relative w-64 bg-white h-full shadow-xl">
+          <SidebarContent {...props} showClose />
         </div>
       </div>
     );
   }
-
   return (
-    <div className="hidden lg:flex flex-col w-64 shrink-0 bg-white border-r border-gray-200 h-full">
-      <SidebarContent items={items} active={active} onNav={onNav} rates={rates} />
+    <div className="hidden lg:flex flex-col w-64 bg-white border-r border-gray-200 h-full">
+      <SidebarContent {...props} />
     </div>
   );
 }
