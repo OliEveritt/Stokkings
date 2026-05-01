@@ -7,8 +7,15 @@ export default defineConfig({
   test: {
     environment: 'jsdom',
     globals: true,
-    // Path corrected to match the location in image_2ff997.png
-    setupFiles: ['./tests/setup.ts'], 
+    setupFiles: ['./tests/setup.ts'],
+    // Add this exclude block to stop Vitest from running Playwright tests
+    exclude: [
+      '**/node_modules/**',
+      '**/dist/**',
+      '**/tests/e2e/**', 
+      '**/*.spec.ts',
+      '**/node_modules/**',
+    ],
   },
   resolve: {
     alias: {
