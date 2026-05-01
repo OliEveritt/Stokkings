@@ -1,0 +1,52 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isAdmin() {
+      return request.auth != null && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'Admin';
+    }
+
+    function isAdminOrTreasurer() {
+      return request.auth != null && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ['Admin', 'Treasurer'];
+    }
+
+    // Payout Schedules: Admins & Treasurers manage; Others read
+    match /payout_schedules/{scheduleId} {
+      allow read: if request.auth != null;
+      allow write: if isAdminOrTreasurer();
+    }
+
+    // Invitations: Public read for token validation; Status change logic for UAT 4
+    match /invitations/{invitationId} {
+      allow read: if true; 
+      allow create: if request.auth != null;
+      allow update: if request.auth != null &&
+                    request.resource.data.status == 'accepted' && 
+                    resource.data.status == 'pending';
+      allow delete: if false;
+    }
+
+    // Groups: Secure updates for group settings
+    match /groups/{groupId} {
+      allow read: if request.auth != null;
+      allow update: if isAdmin(); // Only Admins change group settings
+    }
+
+    // Users: Identity security
+    match /users/{userId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+    
+    // Meetings: Manageable by Admins/Treasurers
+    match /meetings/{meetingId} {
+      allow read: if request.auth != null;
+      allow write: if isAdminOrTreasurer();
+    }
+    
+    // Contributions: Private reading; Admin management
+    match /contributions/{contributionId} {
+      allow read: if request.auth != null && (resource.data.userId == request.auth.uid || isAdminOrTreasurer());
+      allow write: if isAdminOrTreasurer();
+    }
+  }
+}

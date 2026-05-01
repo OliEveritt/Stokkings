@@ -1,0 +1,15 @@
+@startuml
+left to right direction
+skinparam packageStyle rectangle
+
+actor Admin
+actor "New Member" as Member
+
+rectangle "Stokkings Onboarding (US-2.1)" {
+  Admin -- (Invite Member via Email)
+  Admin -- (View Pending Invitations)
+  Member -- (Receive Invitation Email)
+  Member -- (Accept Invitation & Sign Up)
+  (Accept Invitation & Sign Up) .> (Join Group) : include
+}
+@enduml

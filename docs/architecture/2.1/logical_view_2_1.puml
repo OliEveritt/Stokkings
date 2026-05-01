@@ -1,0 +1,23 @@
+@startuml
+package "Firestore Database" {
+    class "invitations (Collection)" as Invitations {
+        +String token
+        +String email
+        +String groupId
+        +String status
+        +DateTime expires_at
+    }
+    class "users (Collection)" as Users {
+        +String uid
+        +String email
+        +String firstName
+        +String role
+    }
+    class "groups (Collection)" as Groups {
+        +String groupId
+        +String name
+    }
+}
+Invitations --> Groups : "references"
+Users --> Groups : "member of"
+@enduml

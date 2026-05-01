@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, use } from "react";
-import { db } from "@/lib/firebase";
+import { db, auth } from "@/lib/firebase";
 import { 
   collection, 
   addDoc, 
@@ -11,37 +11,72 @@ import {
   onSnapshot,
   serverTimestamp 
 } from "firebase/firestore";
-import { Send, UserPlus, ShieldCheck, Clock, CheckCircle2, Copy, Link2 } from "lucide-react";
+import { UserPlus, ShieldCheck, Clock, CheckCircle2, Copy, Link2, ChevronDown } from "lucide-react";
 
 export default function OnboardingCenter({ params }: { params: Promise<{ groupId: string }> }) {
-  const { groupId } = use(params);
+  const resolvedParams = use(params);
+  const initialGroupId = resolvedParams.groupId;
+  
   const [email, setEmail] = useState("");
   const [loading, setLoading] = useState(false);
   const [invites, setInvites] = useState<any[]>([]);
+  const [availableGroups, setAvailableGroups] = useState<any[]>([]);
+  const [selectedGroupId, setSelectedGroupId] = useState(initialGroupId);
 
-  // --- LIVE AUDIT LISTENER ---
+  // 1. Fetch available groups for the Treasurer/Admin
   useEffect(() => {
-    const q = query(collection(db, "invitations"), where("groupId", "==", groupId));
+    const fetchGroups = async () => {
+      if (!auth.currentUser) return;
+      const q = query(
+        collection(db, "groups"), 
+        where("members", "array-contains", auth.currentUser.uid)
+      );
+      const snap = await getDocs(q);
+      const groupsData = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      setAvailableGroups(groupsData);
+      
+      if (initialGroupId === "undefined" && groupsData.length > 0) {
+        setSelectedGroupId(groupsData[0].id);
+      }
+    };
+    fetchGroups();
+  }, [initialGroupId]);
+
+  // 2. LIVE AUDIT LISTENER
+  useEffect(() => {
+    if (!selectedGroupId || selectedGroupId === "undefined") return;
+
+    const q = query(collection(db, "invitations"), where("groupId", "==", selectedGroupId));
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const docs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-      setInvites(docs.sort((a: any, b: any) => b.createdAt?.seconds - a.createdAt?.seconds));
+      setInvites(docs.sort((a: any, b: any) => 
+        (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0)
+      ));
     });
     return () => unsubscribe();
-  }, [groupId]);
+  }, [selectedGroupId]);
 
   const handleSendInvite = async () => {
-    if (!email) return;
+    if (!email || selectedGroupId === "undefined") {
+      alert("Please select a group and enter an email.");
+      return;
+    }
+    
     setLoading(true);
     try {
       const cleanEmail = email.toLowerCase().trim();
       const invitationsRef = collection(db, "invitations");
       
-      // UAT 3: Duplicate Check
-      const checkQ = query(invitationsRef, where("groupId", "==", groupId), where("email", "==", cleanEmail));
+      // Functional Duplicate Check (Still active for data integrity)
+      const checkQ = query(
+        invitationsRef, 
+        where("groupId", "==", selectedGroupId), 
+        where("email", "==", cleanEmail)
+      );
       const checkSnap = await getDocs(checkQ);
       
       if (!checkSnap.empty) {
-        alert("🚨 Duplicate: This user is already invited or a member.");
+        alert("🚨 This user has already been invited to this group.");
         setLoading(false);
         return;
       }
@@ -49,10 +84,11 @@ export default function OnboardingCenter({ params }: { params: Promise<{ groupId
       const newToken = crypto.randomUUID();
       await addDoc(invitationsRef, {
         email: cleanEmail,
-        groupId,
+        groupId: selectedGroupId,
         token: newToken,
         status: "pending",
         createdAt: serverTimestamp(),
+        invitedBy: auth.currentUser?.uid
       });
       setEmail("");
     } catch (err) {
@@ -82,56 +118,83 @@ export default function OnboardingCenter({ params }: { params: Promise<{ groupId
           </div>
 
           <div className="space-y-6">
-            <input 
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="new.member@wits.ac.za"
-              className="w-full bg-gray-50 border-none rounded-2xl p-4 font-semibold text-gray-700 focus:ring-2 focus:ring-emerald-500 outline-none transition-all"
-            />
+            <div className="space-y-2">
+              <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest px-1">Target Stokvel Group</label>
+              <div className="relative">
+                <select 
+                  value={selectedGroupId}
+                  onChange={(e) => setSelectedGroupId(e.target.value)}
+                  className="w-full bg-gray-50 border-2 border-transparent focus:border-emerald-500 rounded-2xl p-4 font-bold text-gray-700 outline-none appearance-none transition-all cursor-pointer"
+                >
+                  <option value="undefined">Select a group...</option>
+                  {availableGroups.map((g) => (
+                    <option key={g.id} value={g.id}>
+                      {g.group_name || "Stokvel Group"}
+                    </option>
+                  ))}
+                </select>
+                <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" size={20} />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest px-1">Member Email</label>
+              <input 
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="new.member@wits.ac.za"
+                className="w-full bg-gray-50 border-2 border-transparent focus:border-emerald-500 rounded-2xl p-4 font-semibold text-gray-700 outline-none transition-all"
+              />
+            </div>
+
             <button 
               onClick={handleSendInvite}
-              disabled={loading}
-              className="w-full bg-emerald-600 text-white py-4 rounded-2xl font-black text-sm hover:bg-emerald-700 transition-all shadow-lg"
+              disabled={loading || selectedGroupId === "undefined"}
+              className="w-full bg-emerald-600 text-white py-4 rounded-2xl font-black text-sm hover:bg-emerald-700 transition-all shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {loading ? "CHECKING..." : "SEND INVITATION"}
+              {loading ? "PROCESSING..." : "SEND INVITATION"}
             </button>
-            <div className="bg-blue-50/50 p-4 rounded-2xl flex gap-3 border border-blue-100/50">
-              <ShieldCheck className="text-blue-500 shrink-0" size={18} />
-              <p className="text-[10px] text-blue-600 font-bold uppercase tracking-wider">UAT 3: Active duplicate protection.</p>
-            </div>
           </div>
         </div>
 
         {/* RIGHT: LIVE AUDIT TRAIL */}
         <div className="bg-white rounded-[2.5rem] shadow-2xl p-10 border border-gray-100">
-          <div className="flex items-center gap-4 mb-8">
-            <div className="p-3 bg-gray-50 text-gray-400 rounded-xl"><Link2 size={20} /></div>
-            <h2 className="text-lg font-black text-gray-800">Live Audit Trail</h2>
+          <div className="flex items-center justify-between mb-8">
+            <div className="flex items-center gap-4">
+              <div className="p-3 bg-gray-50 text-gray-400 rounded-xl"><Link2 size={20} /></div>
+              <h2 className="text-lg font-black text-gray-800">Live Audit Trail</h2>
+            </div>
+            <span className="text-[10px] font-black text-gray-400 bg-gray-100 px-3 py-1 rounded-full uppercase tracking-widest">
+              {invites.length} Records
+            </span>
           </div>
 
-          <div className="space-y-3">
-            {invites.map((invite) => (
-              <div key={invite.id} className="flex items-center justify-between p-4 bg-gray-50/50 rounded-2xl border border-gray-100 group">
-                <div className="max-w-[180px]">
-                  <p className="text-xs font-bold text-gray-700 truncate">{invite.email}</p>
-                  <button 
-                    onClick={() => copyToClipboard(invite.token)}
-                    className="text-[10px] font-black text-emerald-600 flex items-center gap-1 mt-1 opacity-60 group-hover:opacity-100 transition-opacity"
-                  >
-                    <Copy size={10} /> COPY LINK
-                  </button>
+          <div className="space-y-3 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
+            {invites.length === 0 ? (
+              <p className="text-center py-10 text-gray-400 text-xs font-bold uppercase tracking-widest">No invitations found for this group.</p>
+            ) : (
+              invites.map((invite) => (
+                <div key={invite.id} className="flex items-center justify-between p-4 bg-gray-50/50 rounded-2xl border border-gray-100 group hover:border-emerald-200 transition-all">
+                  <div className="max-w-[180px]">
+                    <p className="text-xs font-bold text-gray-700 truncate">{invite.email}</p>
+                    <button 
+                      onClick={() => copyToClipboard(invite.token)}
+                      className="text-[10px] font-black text-emerald-600 flex items-center gap-1 mt-1 opacity-60 group-hover:opacity-100 transition-opacity"
+                    >
+                      <Copy size={10} /> COPY LINK
+                    </button>
+                  </div>
+                  
+                  <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full ${invite.status === 'accepted' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>
+                    {invite.status === 'accepted' ? <CheckCircle2 size={12} /> : <Clock size={12} />}
+                    <span className="text-[10px] font-black uppercase tracking-tighter">{invite.status}</span>
+                  </div>
                 </div>
-                
-                <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full ${invite.status === 'accepted' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>
-                  {invite.status === 'accepted' ? <CheckCircle2 size={12} /> : <Clock size={12} />}
-                  <span className="text-[10px] font-black uppercase tracking-tighter">{invite.status}</span>
-                </div>
-              </div>
-            ))}
+              ))
+            )}
           </div>
         </div>
-
       </div>
     </div>
   );

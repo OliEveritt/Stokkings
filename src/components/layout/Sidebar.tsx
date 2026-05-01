@@ -1,6 +1,6 @@
 "use client";
 
-import { X, Shield, ChevronRight } from "lucide-react";
+import { X, Shield } from "lucide-react";
 import Link from "next/link";
 import type { NavItem, Rates } from "@/types";
 
@@ -14,7 +14,19 @@ interface SidebarProps {
   onClose?: () => void;
 }
 
-function SidebarContent({ items, active, onNav, rates, currentGroupId, onClose, showClose }: any) {
+// Added explicit Interface for Content to resolve "any" warnings
+interface SidebarContentProps extends SidebarProps {
+  showClose?: boolean;
+}
+
+function SidebarContent({ 
+  items, 
+  active, 
+  onNav, 
+  currentGroupId, 
+  onClose, 
+  showClose 
+}: SidebarContentProps) {
   return (
     <>
       <div className="flex items-center justify-between px-5 h-16 border-b border-gray-100">
@@ -22,7 +34,11 @@ function SidebarContent({ items, active, onNav, rates, currentGroupId, onClose, 
           <Shield className="text-emerald-600" size={20} />
           <span className="font-bold text-gray-800">Stokkings</span>
         </div>
-        {showClose && <button onClick={onClose}><X size={20} /></button>}
+        {showClose && (
+          <button onClick={onClose} className="text-gray-500 hover:text-gray-700 transition">
+            <X size={20} />
+          </button>
+        )}
       </div>
 
       <nav className="flex-1 py-4 px-3 space-y-1">
@@ -30,13 +46,16 @@ function SidebarContent({ items, active, onNav, rates, currentGroupId, onClose, 
           const Icon = item.icon;
           const isActive = item.id === active;
 
+          // US-2.1: Navigation for Invitation Management
           if (item.id === "invitations") {
             return (
               <Link
                 key={item.id}
                 href={`/groups/${currentGroupId}/invite`}
-                className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium ${
-                  isActive ? "bg-emerald-50 text-emerald-700" : "text-gray-600 hover:bg-gray-50"
+                className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                  isActive 
+                    ? "bg-emerald-50 text-emerald-700 shadow-sm" 
+                    : "text-gray-600 hover:bg-gray-50"
                 }`}
               >
                 <Icon size={18} />
@@ -45,12 +64,18 @@ function SidebarContent({ items, active, onNav, rates, currentGroupId, onClose, 
             );
           }
 
+          // Default internal state navigation for dashboard sections
           return (
             <button
               key={item.id}
-              onClick={() => onNav(item.id)}
-              className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium ${
-                isActive ? "bg-emerald-50 text-emerald-700" : "text-gray-600 hover:bg-gray-50"
+              onClick={() => {
+                onNav(item.id);
+                if (showClose && onClose) onClose(); // Auto-close mobile drawer on nav
+              }}
+              className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                isActive 
+                  ? "bg-emerald-50 text-emerald-700 shadow-sm" 
+                  : "text-gray-600 hover:bg-gray-50"
               }`}
             >
               <Icon size={18} />
@@ -67,13 +92,17 @@ export default function Sidebar(props: SidebarProps) {
   if (props.mobile) {
     return (
       <div className="fixed inset-0 z-50 flex lg:hidden">
-        <div className="fixed inset-0 bg-gray-900/40" onClick={props.onClose} />
-        <div className="relative w-64 bg-white h-full shadow-xl">
+        <div 
+          className="fixed inset-0 bg-gray-900/40 backdrop-blur-sm transition-opacity" 
+          onClick={props.onClose} 
+        />
+        <div className="relative w-64 bg-white h-full shadow-2xl flex flex-col">
           <SidebarContent {...props} showClose />
         </div>
       </div>
     );
   }
+
   return (
     <div className="hidden lg:flex flex-col w-64 bg-white border-r border-gray-200 h-full">
       <SidebarContent {...props} />

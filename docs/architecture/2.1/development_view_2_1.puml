@@ -1,0 +1,18 @@
+@startuml
+package "stokkings-root" {
+    package "app/api/invite" {
+        [route.ts (Accept Logic)]
+    }
+    package "components/invitation" {
+        [InviteForm.tsx]
+        [AcceptInvite.tsx]
+    }
+    package "lib" {
+        [firebase.ts]
+        [firebaseAdmin.ts]
+    }
+    package "docs/architecture/2.1" {
+        [puml_files]
+    }
+}
+@enduml
