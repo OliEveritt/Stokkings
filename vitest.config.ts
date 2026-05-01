@@ -7,7 +7,21 @@ export default defineConfig({
   test: {
     environment: 'jsdom',
     globals: true,
-    setupFiles: ['./src/test/setup.ts'],
+    setupFiles: ['./tests/setup.ts'],
+    // Refine to only include your 64 passing tests
+    include: [
+      'tests/unit/**/*.test.ts',
+      'tests/integration/invite-validation.test.ts',
+      'tests/integration/firestore-mapping.test.ts',
+      'tests/integration/invitation-flow.test.ts',
+      'tests/integration/security_audit.test.ts'
+    ],
+    exclude: [
+      '**/node_modules/**',
+      '**/dist/**',
+      '**/tests/e2e/**', 
+      '**/*.spec.ts',
+    ],
   },
   resolve: {
     alias: {

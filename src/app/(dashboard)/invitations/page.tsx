@@ -1,53 +1,76 @@
-
-import { redirect } from "next/navigation";
-
-export default function InvitationsRedirect() {
-  // Change this from "/dashboard" to your dynamic invite path
-  redirect("/groups/TestGroup/invite");
-
 "use client";
-
-import { InviteMemberForm } from "@/app/(auth)/invite/InviteForm";
-import PendingInvites from "@/app/(auth)/invite/PendingInvites";
-import { useAuth } from "@/hooks/useAuth"; 
-import { useParams } from "next/navigation";
+import { useEffect, useState } from 'react';
+import { db } from '@/lib/firebase';
+import { collection, onSnapshot, query, orderBy } from 'firebase/firestore';
 
 export default function InvitationsPage() {
-  const { user, loading } = useAuth();
-  const params = useParams();
+  const [invites, setInvites] = useState<any[]>([]);
 
-  // In Next.js, if your route is /dashboard/groups/[groupId]/invitations
-  // then params.groupId will be available. 
-  // If you aren't using dynamic routes yet, you might need a different way to get the ID.
-  const groupId = params?.groupId as string || "default_group_id"; 
-  const adminId = user?.uid;
+  useEffect(() => {
+    const q = query(collection(db, 'invitations'), orderBy('createdAt', 'desc'));
+    const unsubscribe = onSnapshot(q, (snap) => {
+      setInvites(snap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+    });
+    return () => unsubscribe();
+  }, []);
 
-  if (loading) {
-    return <div className="p-6 font-medium text-gray-400 animate-pulse">Authenticating...</div>;
-  }
-
-  if (!adminId) {
-    return <div className="p-6 text-red-500 font-bold">Error: You must be logged in to view this page.</div>;
-  }
+  // Helper to handle Firestore Timestamps vs Serialized Dates
+  const formatExpiryDate = (expiresAt: any) => {
+    if (!expiresAt) return 'No expiry';
+    
+    // Check if it's a Firestore Timestamp object
+    if (typeof expiresAt.toDate === 'function') {
+      return expiresAt.toDate().toLocaleDateString();
+    }
+    
+    // Fallback for serialized strings or plain Date objects
+    return new Date(expiresAt).toLocaleDateString();
+  };
 
   return (
-    <div className="p-6 space-y-8">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight text-gray-900">Invitations</h1>
-        <p className="text-sm text-gray-500">Securely onboard new members.</p>
-      </div>
-
-      <div className="grid gap-8 md:grid-cols-2">
-        <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
-          <h2 className="text-lg font-bold mb-4 text-gray-800">Invite New Member</h2>
-          <InviteMemberForm groupId={groupId} adminId={adminId} />
-        </div>
-
-        <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
-          <h2 className="text-lg font-bold mb-4 text-gray-800">Pending Audit Trail</h2>
-          <PendingInvites groupId={groupId} />
-        </div>
+    <div className="p-6">
+      <h2 className="text-xl font-bold mb-4">Manage Invitations</h2>
+      <div className="bg-white rounded-lg shadow overflow-hidden">
+        <table className="w-full text-left">
+          <thead className="bg-gray-50">
+            <tr>
+              <th className="p-4 text-sm font-semibold text-gray-700">Email</th>
+              <th className="p-4 text-sm font-semibold text-gray-700">Group</th>
+              <th className="p-4 text-sm font-semibold text-gray-700">Status</th>
+              <th className="p-4 text-sm font-semibold text-gray-700">Expires</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-gray-200">
+            {invites.map(invite => (
+              <tr key={invite.id} className="hover:bg-gray-50 transition-colors">
+                <td className="p-4 text-sm text-gray-900">{invite.email}</td>
+                <td className="p-4 font-mono text-xs text-blue-600 bg-blue-50 rounded px-2 py-1 inline-block mt-3 ml-4">
+                  {invite.groupId}
+                </td>
+                <td className="p-4">
+                  <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                    invite.status === 'pending' 
+                      ? 'bg-yellow-100 text-yellow-800' 
+                      : 'bg-green-100 text-green-800'
+                  }`}>
+                    {invite.status.charAt(0).toUpperCase() + invite.status.slice(1)}
+                  </span>
+                </td>
+                <td className="p-4 text-gray-500 text-sm">
+                  {formatExpiryDate(invite.expiresAt)}
+                </td>
+              </tr>
+            ))}
+            {invites.length === 0 && (
+              <tr>
+                <td colSpan={4} className="p-8 text-center text-gray-500 italic">
+                  No invitations found.
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
       </div>
     </div>
   );
- 
+}

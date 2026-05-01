@@ -3,7 +3,7 @@
 import { auth, db } from "@/lib/firebase";
 import { doc, getDoc } from "firebase/firestore";
 
-export async function getActiveMembership(requestedGroupId?: number) {
+export async function getActiveMembership(_requestedGroupId?: number) {
   // For now, return mock data until we migrate the data
   // This keeps the dashboard working
   const currentUser = auth.currentUser;

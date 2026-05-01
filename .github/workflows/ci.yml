@@ -28,7 +28,7 @@ jobs:
 
       - name: Check for Merge Markers
         run: |
-          if grep -r "<<<<<<<" . --exclude-dir=.git --exclude-dir=node_modules --exclude-dir=.next; then
+          if grep -r "<<<<<<<" . --exclude-dir=.git --exclude-dir=node_modules --exclude-dir=.next --exclude-dir=.github; then
             echo "Merge markers found. Build rejected."
             exit 1
           fi

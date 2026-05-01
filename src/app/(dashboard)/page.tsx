@@ -2,86 +2,56 @@
 
 import { useEffect, useState } from "react";
 import { useFirebaseAuth } from "@/context/FirebaseAuthContext";
-import { collection, query, where, getDocs } from "firebase/firestore";
 import { db } from "@/lib/firebase";
-import Link from "next/link";
-import { ShieldCheck, Loader2 } from "lucide-react";
+import { collection, query, where, getDocs, orderBy } from "firebase/firestore";
+import PayoutScheduleTable from "@/components/dashboard/PayoutScheduleTable";
 
-export default function DashboardLanding() {
+export default function PayoutSchedulePage() {
   const { user } = useFirebaseAuth();
-  const [groups, setGroups] = useState<any[]>([]);
+  const [schedule, setSchedule] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!user) return;
-    
-    const fetchGroups = async () => {
-      setLoading(true);
+    async function fetchPayouts() {
+      if (!user) return;
       try {
-        // 1. Search the Bridge Collection (group_members)
-        const qBridge = query(collection(db, "group_members"), where("userId", "==", user.uid));
-        const bridgeSnap = await getDocs(qBridge);
-        const bridgeResults = bridgeSnap.docs.map(doc => ({ 
-          id: doc.data().groupId, 
-          name: doc.data().groupName || "Unnamed Group" 
-        }));
-
-        // 2. Search the Group Collection (array-contains)
-        const qArray = query(collection(db, "groups"), where("members", "array-contains", user.uid));
-        const arraySnap = await getDocs(qArray);
-        const arrayResults = arraySnap.docs.map(doc => ({ 
-          id: doc.id, 
-          name: doc.data().group_name || doc.data().name || "Unnamed Group" 
-        }));
-
-        // 3. Merge and De-duplicate (to ensure no double entries)
-        const allGroups = Array.from(new Map([...bridgeResults, ...arrayResults].map(g => [g.id, g])).values());
+        const groupQuery = query(collection(db, "groups"), where("members", "array-contains", user.uid));
+        const groupSnap = await getDocs(groupQuery);
         
-        setGroups(allGroups);
-      } catch (err) {
-        console.error("Dashboard Fetch Error:", err);
+        if (!groupSnap.empty) {
+          const groupId = groupSnap.docs[0].id;
+          const payoutQuery = query(
+            collection(db, "payout_schedules"),
+            where("groupId", "==", groupId),
+            orderBy("position", "asc")
+          );
+          const payoutSnap = await getDocs(payoutQuery);
+          setSchedule(payoutSnap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+        }
+      } catch (error) {
+        console.error("Error fetching payouts:", error);
       } finally {
         setLoading(false);
       }
-    };
-
-    fetchGroups();
+    }
+    fetchPayouts();
   }, [user]);
 
-  if (loading) return (
-    <div className="p-20 flex flex-col items-center justify-center space-y-4">
-      <Loader2 className="animate-spin text-emerald-600" size={48} />
-      <p className="text-xs font-black text-gray-400 uppercase tracking-widest">Auditing Memberships...</p>
-    </div>
-  );
+  if (loading) return <div className="p-8 animate-pulse text-gray-400">Loading schedule...</div>;
 
   return (
-    <div className="p-8 space-y-8">
-      <h1 className="text-4xl font-black text-gray-900 tracking-tight">My Active Groups</h1>
-      
-      <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-        {groups.length === 0 ? (
-          <div className="col-span-full p-20 border-2 border-dashed border-gray-100 rounded-[3.5rem] text-center bg-white">
-            <p className="text-gray-400 font-bold italic">No active memberships found for {user.email}.</p>
-            <p className="text-[10px] text-gray-300 uppercase mt-4 font-black">Standard Bank Ledger Audit: 0 Records</p>
-          </div>
-        ) : (
-          groups.map(group => (
-            <Link key={group.id} href={`/dashboard/${group.id}`}>
-              <div className="group p-10 bg-white border border-gray-50 rounded-[3rem] shadow-xl hover:shadow-emerald-200/40 hover:border-emerald-500 transition-all cursor-pointer">
-                <div className="flex justify-between items-start mb-6">
-                  <div className="w-14 h-14 bg-emerald-50 rounded-[1.5rem] flex items-center justify-center text-emerald-600">
-                    <ShieldCheck size={28} />
-                  </div>
-                  <span className="text-[10px] font-black text-emerald-600 bg-emerald-50 px-4 py-2 rounded-full uppercase">Verified</span>
-                </div>
-                <h2 className="font-black text-2xl text-gray-900 leading-none">{group.name}</h2>
-                <p className="text-[10px] text-gray-400 font-bold uppercase mt-6 tracking-widest">ID: {group.id.substring(0, 12)}...</p>
-              </div>
-            </Link>
-          ))
-        )}
-      </div>
+    <div className="space-y-6">
+      <h1 className="text-2xl font-bold text-gray-900">Payout Schedule</h1>
+      {schedule.length === 0 ? (
+        <div className="p-12 text-center border-2 border-dashed rounded-xl text-gray-400">
+          No payout rotation has been set yet.
+        </div>
+      ) : (
+        <PayoutScheduleTable 
+          schedule={schedule} 
+          isTreasurer={user?.role === "Admin" || user?.role === "Treasurer"} 
+        />
+      )}
     </div>
   );
-} 
+}

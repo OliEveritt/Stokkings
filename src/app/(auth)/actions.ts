@@ -11,10 +11,10 @@ export async function logout() {
   redirect("/login");
 }
 
-export async function login(formData: FormData) {
+export async function login(_formData: FormData) {
   redirect("/login");
 }
 
-export async function signUp(formData: FormData) {
+export async function signUp(_formData: FormData) {
   redirect("/sign-up");
 }
