@@ -7,7 +7,8 @@ export default defineConfig({
   test: {
     environment: 'jsdom',
     globals: true,
-    setupFiles: ['./src/test/setup.ts'],
+    // Path corrected to match the location in image_2ff997.png
+    setupFiles: ['./tests/setup.ts'], 
   },
   resolve: {
     alias: {
