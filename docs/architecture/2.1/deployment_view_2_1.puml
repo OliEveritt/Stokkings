@@ -1,0 +1,15 @@
+@startuml
+node "Client Device" {
+    component "Web Browser"
+}
+
+node "Firebase Cloud" {
+    component "Firebase Hosting (Next.js)"
+    component "Firebase Auth"
+    database "Cloud Firestore"
+}
+
+"Web Browser" -- "Firebase Hosting" : HTTPS
+"Firebase Hosting" -- "Firebase Auth" : Identity
+"Firebase Hosting" -- "Cloud Firestore" : NoSQL Data
+@enduml

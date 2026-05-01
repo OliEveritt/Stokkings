@@ -1,0 +1,16 @@
+@startuml
+actor Member
+participant "Invitation Page" as UI
+participant "Accept API (/api/invite/accept)" as API
+database "Firestore" as DB
+
+Member -> UI : Clicks Invite Link
+UI -> API : POST (Token + Firebase UID)
+API -> DB : Transaction Start
+DB -> DB : Validate Token is 'pending'
+DB -> DB : Create User Document
+DB -> DB : Add to Group Members
+DB -> DB : Update Token to 'accepted'
+API -> UI : Success Response
+UI -> Member : Redirect to Dashboard
+@enduml
