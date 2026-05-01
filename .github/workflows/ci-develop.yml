@@ -1,7 +1,9 @@
 name: Sprint 2 Development CI
+
 on:
   push:
-    branches: [ "develop" ]
+    # Added your specific feature branch to ensure CI runs before your viva
+    branches: [ "develop", "US-21-invite-members-to-a-group" ]
   pull_request:
     branches: [ "develop" ]
 
@@ -19,11 +21,28 @@ jobs:
           cache: 'npm'
 
       - name: Install Dependencies
+        # Requires the package-lock.json we just generated and committed
         run: npm ci
 
+      - name: Check for Merge Markers
+        # This step prevents "broken" code from being merged
+        run: |
+          if grep -r "<<<<<<<" . --exclude-dir={.git,node_modules,.next}; then
+            echo "Merge markers found. Build rejected."
+            exit 1
+          fi
+
       - name: Run Sprint 2 TDD & Coverage
-        # High coverage (>50%) is required for an Excellent grade 
+        # Aiming for the >50% coverage mark for the 'Excellent' grade
         run: npx vitest run --coverage tests/unit/sprint2_tdd.test.ts
 
       - name: Security Rules Integration Test
+        # Validates Firestore rules for US-2.1 invitation security
         run: npx vitest run tests/integration/security_audit.test.ts
+
+      - name: Build Application
+        # Final verification that the production build is operational
+        run: npm run build
+        env:
+          # Necessary for Next.js build to succeed with your new auth logic
+          NEXT_PUBLIC_BASE_URL: http://localhost:3000
