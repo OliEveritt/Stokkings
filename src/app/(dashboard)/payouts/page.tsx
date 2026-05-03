@@ -7,10 +7,46 @@ export default function PayoutsPage() {
   const [isAdmin] = useState(true); // Logic to be linked to your Auth context
 
   useEffect(() => {
+<<<<<<< Updated upstream
     // Replace with dynamic group ID from your context
     const unsubscribe = subscribeToPayouts("current-group-id", setPayouts);
     return () => unsubscribe();
   }, []);
+=======
+    async function fetchPayouts() {
+      if (!user) return;
+      try {
+        const groupQuery = query(
+          collection(db, "groups"), 
+          where("members", "array-contains", user.uid)
+        );
+        const groupSnap = await getDocs(groupQuery);
+        
+        if (!groupSnap.empty) {
+          const groupId = groupSnap.docs[0].id;
+          const payoutQuery = query(
+            collection(db, "payout_schedules"),
+            where("groupId", "==", groupId),
+            orderBy("position", "asc")
+          );
+          
+          const payoutSnap = await getDocs(payoutQuery);
+          const list = payoutSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+          setSchedule(list);
+        }
+      } catch (error) {
+        console.error("Error fetching payout schedule:", error);
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchPayouts();
+  }, [user]);
+
+  if (loading) return <div className="p-8 animate-pulse text-gray-500">Calculating schedule...</div>;
+
+  const isAuthorized = userRole === "Admin" || userRole === "Treasurer";
+>>>>>>> Stashed changes
 
   return (
     <div className="p-6">

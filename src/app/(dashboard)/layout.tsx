@@ -1,6 +1,10 @@
 "use client";
 
 import { useState, useMemo, useCallback, useEffect } from "react";
+<<<<<<< Updated upstream
+=======
+import { useRouter, useParams } from "next/navigation";
+>>>>>>> Stashed changes
 import {
   Home, Users, Calendar, BarChart3,
   CreditCard, UserPlus, CircleDollarSign, ClipboardList,
@@ -12,7 +16,9 @@ import Sidebar from "@/components/layout/Sidebar";
 import RatesBanner from "@/components/layout/RatesBanner";
 import { useRates } from "@/hooks/useRates";
 import { useFirebaseAuth } from "@/context/FirebaseAuthContext";
-import type { User, Notification, NavItem, Role } from "@/types";
+import { doc, getDoc } from "firebase/firestore";
+import { db } from "@/lib/firebase";
+import type { User, NavItem, Role } from "@/types";
 
 const MOCK_NOTIFS: Notification[] = [
   { id: 1, text: "Contribution confirmed — R500", time: "2h ago", read: false },
@@ -34,10 +40,39 @@ const NAV: NavItem[] = [
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const { user: firebaseUser, loading: authLoading } = useFirebaseAuth();
   const router = useRouter();
+<<<<<<< Updated upstream
+=======
+  const params = useParams();
+  
+  const currentGroupId = (params.groupId || params.id) as string;
+
+>>>>>>> Stashed changes
   const { rates, loading: ratesLoading } = useRates();
   const [activePage, setActivePage] = useState("dashboard");
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [userRole, setUserRole] = useState<Role>("Member");
+  const [userName, setUserName] = useState<string>("User");
 
+  useEffect(() => {
+    if (!firebaseUser) return;
+    const fetchUserData = async () => {
+      try {
+        const userDoc = await getDoc(doc(db, "users", firebaseUser.uid));
+        if (userDoc.exists()) {
+          const data = userDoc.data();
+          setUserRole(data.role || "Member");
+          setUserName(data.fullName || firebaseUser.displayName || firebaseUser.email?.split('@')[0] || "User");
+        } else {
+          setUserName(firebaseUser.displayName || firebaseUser.email?.split('@')[0] || "User");
+        }
+      } catch (err) {
+        console.error("Failed to fetch user role", err);
+      }
+    };
+    fetchUserData();
+  }, [firebaseUser]);
+
+<<<<<<< Updated upstream
   // All hooks must be called before any conditional returns
   const user: User & { group_id?: number } = {
     name: firebaseUser?.name || "Loading...",
@@ -45,6 +80,14 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     avatar: null,
     group: "Stokvel Group",
     role: firebaseUser?.role || "Member",
+=======
+  const user: User = {
+    name: userName,
+    email: firebaseUser?.email || "",
+    avatar: null,
+    group: "Stokvel Group",
+    role: userRole,
+>>>>>>> Stashed changes
   };
 
   const roleOverride = user.role as Role;
@@ -61,7 +104,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     if (navItem) {
       setActivePage(id);
       setMobileOpen(false);
+<<<<<<< Updated upstream
       router.push(navItem.path);
+=======
+      router.push(`${navItem.path}/${currentGroupId}`);
+>>>>>>> Stashed changes
     }
   }, [router]);
 
@@ -90,6 +137,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   return (
     <div className="h-screen flex flex-col bg-gray-50 overflow-hidden font-sans">
       {!ratesLoading && <RatesBanner rates={rates} />}
+<<<<<<< Updated upstream
 
       <Header
         user={user}
@@ -101,6 +149,18 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         onMandateSwitch={handleMandateSwitch}
         onRoleChange={handleRoleChange}
         onOpenMobileSidebar={() => setMobileOpen(true)}
+=======
+      <Header 
+        user={user} 
+        groupName={user.group} 
+        activeLabel={NAV.find(n => n.id === activePage)?.label || "Dashboard"}
+        onOpenMobileSidebar={() => setMobileOpen(true)}
+        notifications={[]}
+        roleOverride={null}
+        mandates={[]}
+        onMandateSwitch={() => {}}
+        onRoleChange={() => {}}
+>>>>>>> Stashed changes
       />
 
       <div className="flex flex-1 overflow-hidden">

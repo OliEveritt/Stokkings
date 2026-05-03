@@ -1,9 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useFirebaseAuth } from "@/context/FirebaseAuthContext";
 import { useRouter } from "next/navigation";
-import { collection, addDoc, serverTimestamp } from "firebase/firestore";
+import { collection, addDoc, serverTimestamp, doc, getDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 
 interface FormData {
@@ -25,6 +25,8 @@ export default function CreateGroupPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [roleLoading, setRoleLoading] = useState(true);
   const [formData, setFormData] = useState<FormData>({
     group_name: "",
     contribution_amount: "",
@@ -33,8 +35,30 @@ export default function CreateGroupPage() {
   });
   const [errors, setErrors] = useState<FormErrors>({});
 
+  // Fetch user role from Firestore
+  useEffect(() => {
+    const fetchUserRole = async () => {
+      if (!user) {
+        setRoleLoading(false);
+        return;
+      }
+      try {
+        const userDoc = await getDoc(doc(db, "users", user.uid));
+        if (userDoc.exists()) {
+          const role = userDoc.data()?.role;
+          setIsAdmin(role === "Admin");
+        }
+      } catch (err) {
+        console.error("Failed to fetch user role:", err);
+      } finally {
+        setRoleLoading(false);
+      }
+    };
+    fetchUserRole();
+  }, [user]);
+
   // Role guard - non-admins see access denied
-  if (!authLoading && (!user || user.role !== "Admin")) {
+  if (!authLoading && !roleLoading && (!user || !isAdmin)) {
     return (
       <div className="flex items-center justify-center min-h-[50vh]">
         <div className="text-center">
@@ -97,7 +121,7 @@ export default function CreateGroupPage() {
         payout_frequency: formData.payout_frequency,
         payout_order: formData.payout_order,
         created_by: user?.uid,
-        created_by_name: user?.name,
+        created_by_name: user?.displayName || user?.email?.split('@')[0] || "Unknown",
         created_at: serverTimestamp(),
         members: [user?.uid],
       };
@@ -124,7 +148,7 @@ export default function CreateGroupPage() {
     }
   };
 
-  if (authLoading) {
+  if (authLoading || roleLoading) {
     return <div className="p-8 text-gray-500">Loading...</div>;
   }
 
@@ -241,4 +265,5 @@ export default function CreateGroupPage() {
       </form>
     </div>
   );
+  
 }

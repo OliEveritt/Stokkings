@@ -66,7 +66,11 @@ export default function ContributionsPage() {
       const token = await user?.getIdToken();
       const response = await fetch("/api/payments/checkout", {
         method: "POST",
+<<<<<<< Updated upstream
         headers: {
+=======
+       headers: {
+>>>>>>> Stashed changes
           "Content-Type": "application/json",
           "Authorization": `Bearer ${token}`,
         },
