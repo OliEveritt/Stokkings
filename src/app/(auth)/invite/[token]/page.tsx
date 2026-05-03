@@ -1,19 +1,17 @@
 "use client";
 
-import { use, useEffect, useState } from 'react';
-import { db, auth } from '@/lib/firebase';
-import { collection, query, where, getDocs, doc, runTransaction, arrayUnion } from 'firebase/firestore';
-import { useRouter } from 'next/navigation';
-import { onAuthStateChanged, User as FirebaseUser } from 'firebase/auth';
+import { use, useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import { onAuthStateChanged, User } from "firebase/auth";
+import { doc, getDoc, getDocs, collection, query, where, runTransaction } from "firebase/firestore";
+import { db, auth } from "@/lib/firebase";
 
 export default function AcceptInvitePage({ params }: { params: Promise<{ token: string }> }) {
-  const resolvedParams = use(params);
-  const token = resolvedParams.token;
-  
+  const { token } = use(params);
+  const [user, setUser] = useState<User | null>(null);
   const [invitation, setInvitation] = useState<any>(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
-  const [user, setUser] = useState<FirebaseUser | null>(null);
+  const [error, setError] = useState("");
   const router = useRouter();
 
   useEffect(() => {
@@ -24,59 +22,58 @@ export default function AcceptInvitePage({ params }: { params: Promise<{ token: 
   useEffect(() => {
     const fetchInvite = async () => {
       try {
-        const q = query(collection(db, 'invitations'), where('token', '==', token));
+        const q = query(collection(db, "invitations"), where("token", "==", token));
         const snap = await getDocs(q);
-        if (snap.empty) {
-          setError("Invalid link.");
-          return;
-        }
+        if (snap.empty) throw new Error("Invalid invitation.");
         const data = snap.docs[0].data();
+        if (data.status !== "pending") throw new Error("Invitation already used.");
         setInvitation({ id: snap.docs[0].id, ...data });
-      } catch (err) {
-        setError("Fetch error.");
+      } catch (err: any) {
+        setError(err.message);
       } finally {
         setLoading(false);
       }
     };
-    fetchInvite();
+    if (token) fetchInvite();
   }, [token]);
 
-  const handleAccept = async () => {
-    if (!user || !invitation || !invitation.groupId) return;
+  // Redirect to sign-up if not logged in
+  useEffect(() => {
+    if (!loading && !user && invitation && !error) {
+      router.push(`/sign-up?redirect=/invite/${token}`);
+    }
+  }, [loading, user, invitation, error]);
 
+  const acceptInvitation = async () => {
+    if (!user || !invitation) return;
     try {
+      const memberRef = doc(db, "groups", invitation.groupId, "group_members", user.uid);
+      const memberSnap = await getDoc(memberRef);
+      if (memberSnap.exists()) {
+        router.push(`/dashboard/${invitation.groupId}`);
+        return;
+      }
       await runTransaction(db, async (transaction) => {
-        const groupRef = doc(db, 'groups', invitation.groupId);
-        const inviteRef = doc(db, 'invitations', invitation.id);
-
-        const groupSnap = await transaction.get(groupRef);
-        if (!groupSnap.exists()) throw new Error("Target group does not exist.");
-
-        transaction.update(groupRef, { members: arrayUnion(user.uid) });
-        transaction.update(inviteRef, { 
-          status: 'accepted', 
-          acceptedBy: user.uid, 
-          acceptedAt: new Date() 
+        transaction.set(memberRef, {
+          userId: user.uid,
+          email: user.email,
+          role: "member",
+          joinedAt: new Date(),
         });
+        transaction.update(doc(db, "invitations", invitation.id), { status: "accepted", acceptedBy: user.uid, acceptedAt: new Date() });
       });
-      router.push('/dashboard');
-    } catch (e: any) {
-      alert(`Error: ${e.message}`);
+      router.push(`/dashboard/${invitation.groupId}`);
+    } catch (err: any) {
+      alert(err.message);
     }
   };
 
-  if (loading) return <div>Loading...</div>;
-  if (error) return <div>{error}</div>;
+  useEffect(() => {
+    if (user && invitation && !loading && !error) acceptInvitation();
+  }, [user, invitation, loading, error]);
 
-  return (
-    <div className="text-center p-10">
-      <h1 className="text-2xl font-bold mb-4">Join {invitation.groupId}</h1>
-      <button 
-        onClick={handleAccept}
-        className="bg-emerald-600 text-white px-8 py-3 rounded-lg font-bold"
-      >
-        Accept & Join Group
-      </button>
-    </div>
-  );
+  if (loading) return <div>Loading...</div>;
+  if (error) return <div className="text-red-600">{error}</div>;
+  if (!user) return <div>Redirecting to sign up...</div>;
+  return <div>Joining group...</div>;
 }

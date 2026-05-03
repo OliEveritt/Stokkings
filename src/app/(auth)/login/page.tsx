@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useFirebaseAuth } from "@/context/FirebaseAuthContext";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 
 export default function LoginPage() {
@@ -12,15 +12,19 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const { login, user } = useFirebaseAuth();
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const redirectTo = searchParams.get("redirect");
 
-  // Log when user changes
+  // Redirect when user becomes authenticated
   useEffect(() => {
-    console.log("LoginPage: user changed:", user?.email, user?.role);
     if (user) {
-      console.log("LoginPage: redirecting to dashboard");
-      window.location.href = "/dashboard";
+      if (redirectTo) {
+        router.push(redirectTo);
+      } else {
+        router.push("/dashboard");
+      }
     }
-  }, [user, router]);
+  }, [user, router, redirectTo]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -28,12 +32,10 @@ export default function LoginPage() {
     setLoading(true);
 
     try {
-      console.log("LoginPage: calling login for", email);
       await login(email, password);
-      console.log("LoginPage: login completed");
-      // useEffect will handle redirect when user state updates
+      // The useEffect above will handle redirect when user state updates
     } catch (err: any) {
-      console.error("LoginPage: login error", err);
+      console.error("Login error:", err);
       setError(err.message || "Invalid email or password");
       setLoading(false);
     }
