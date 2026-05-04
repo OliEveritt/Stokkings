@@ -1,9 +1,23 @@
-"use client";
+﻿"use client";
 
 import { useState } from "react";
 import { useFirebaseAuth } from "@/context/FirebaseAuthContext";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
+
+function validateSANumber(phone: string): { isValid: boolean; normalized: string; error?: string } {
+  const cleaned = phone.replace(/\s|-/g, '');
+  const localPattern = /^0[6-8][0-9]{8}$/;
+  const intlPattern = /^\+27[6-8][0-9]{8}$/;
+  if (localPattern.test(cleaned)) {
+    const normalized = '+27' + cleaned.substring(1);
+    return { isValid: true, normalized };
+  }
+  if (intlPattern.test(cleaned)) {
+    return { isValid: true, normalized: cleaned };
+  }
+  return { isValid: false, normalized: '', error: "Enter a valid SA mobile number (e.g., 0821234567 or +27821234567)" };
+}
 
 export default function SignUpPage() {
   const [firstName, setFirstName] = useState("");
@@ -17,40 +31,33 @@ export default function SignUpPage() {
   
   const { signup } = useFirebaseAuth();
   const router = useRouter();
-<<<<<<< Updated upstream
-=======
   const searchParams = useSearchParams();
   
   // Capture invitation context from URL
   const token = searchParams.get("token");
   const groupId = searchParams.get("groupId");
   const redirectTo = searchParams.get("redirect");
->>>>>>> Stashed changes
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
     setLoading(true);
 
-    // Validations
     if (password !== confirmPassword) {
       setError("Passwords do not match");
       setLoading(false);
       return;
     }
 
-    if (phone.length !== 10) {
-      setError("Phone number must be 10 digits");
+    const phoneValidation = validateSANumber(phone);
+    if (!phoneValidation.isValid) {
+      setError(phoneValidation.error || "Invalid phone number");
       setLoading(false);
       return;
     }
+    const normalizedPhone = phoneValidation.normalized;
 
     try {
-<<<<<<< Updated upstream
-      const fullName = `${firstName} ${surname}`;
-      await signup(email, password, fullName);
-      router.push("/dashboard");
-=======
       let userId: string;
 
       try {
@@ -96,7 +103,6 @@ export default function SignUpPage() {
 
       // 3. Finalize Navigation
       router.push(redirectTo || "/dashboard");
->>>>>>> Stashed changes
     } catch (err: any) {
       console.error(err);
       setError(err.message || "Failed to create account");
@@ -157,6 +163,7 @@ export default function SignUpPage() {
               required 
               className="w-full px-4 py-3 rounded-xl bg-gray-50 border border-gray-100 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 outline-none transition-all" 
             />
+            <p className="text-[10px] text-gray-400 mt-1 ml-1">e.g., 0821234567 or +27821234567</p>
           </div>
 
           <div className="space-y-1">

@@ -1,15 +1,11 @@
 "use client";
 
 import { useState, useMemo, useCallback, useEffect } from "react";
-<<<<<<< Updated upstream
-=======
 import { useRouter, useParams } from "next/navigation";
->>>>>>> Stashed changes
 import {
-  Home, Users, Calendar, BarChart3,
-  CreditCard, UserPlus, CircleDollarSign, ClipboardList,
+  Home, Users, Calendar, BarChart3, CreditCard, 
+  UserPlus, CircleDollarSign, TrendingUp, ClipboardList,
 } from "lucide-react";
-import { useRouter } from "next/navigation";
 
 import Header from "@/components/layout/Header";
 import Sidebar from "@/components/layout/Sidebar";
@@ -20,10 +16,6 @@ import { doc, getDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import type { User, NavItem, Role } from "@/types";
 
-const MOCK_NOTIFS: Notification[] = [
-  { id: 1, text: "Contribution confirmed — R500", time: "2h ago", read: false },
-];
-
 const NAV: NavItem[] = [
   { id: "dashboard", label: "Dashboard", icon: Home, roles: ["Member", "Treasurer", "Admin"], path: "/dashboard" },
   { id: "payments", label: "Payments", icon: CreditCard, roles: ["Member", "Treasurer", "Admin"], path: "/payments" },
@@ -33,20 +25,17 @@ const NAV: NavItem[] = [
   { id: "manage-contributions", label: "Manage Contributions", icon: ClipboardList, roles: ["Treasurer", "Admin"], path: "/manage-contributions" },
   { id: "members", label: "Members", icon: Users, roles: ["Admin"], path: "/members" },
   { id: "contributions", label: "My Contributions", icon: CreditCard, roles: ["Member", "Treasurer", "Admin"], path: "/contributions" },
-  { id: "create-group", label: "Create Group", icon: Users, roles: ["Admin"], path: "/create-group" },
+  { id: "savings-projection", label: "Savings Projection", icon: TrendingUp, roles: ["Member", "Treasurer", "Admin"], path: "/savings-projection" },
   { id: "invitations", label: "Invitations", icon: UserPlus, roles: ["Admin"], path: "/invitations" },
 ];
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const { user: firebaseUser, loading: authLoading } = useFirebaseAuth();
   const router = useRouter();
-<<<<<<< Updated upstream
-=======
   const params = useParams();
   
   const currentGroupId = (params.groupId || params.id) as string;
 
->>>>>>> Stashed changes
   const { rates, loading: ratesLoading } = useRates();
   const [activePage, setActivePage] = useState("dashboard");
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -72,84 +61,34 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     fetchUserData();
   }, [firebaseUser]);
 
-<<<<<<< Updated upstream
-  // All hooks must be called before any conditional returns
-  const user: User & { group_id?: number } = {
-    name: firebaseUser?.name || "Loading...",
-    email: firebaseUser?.email || "",
-    avatar: null,
-    group: "Stokvel Group",
-    role: firebaseUser?.role || "Member",
-=======
   const user: User = {
     name: userName,
     email: firebaseUser?.email || "",
     avatar: null,
     group: "Stokvel Group",
     role: userRole,
->>>>>>> Stashed changes
   };
 
-  const roleOverride = user.role as Role;
-
   const visibleNav = useMemo(
-    () => NAV.filter((n) => n.roles.includes(roleOverride)),
-    [roleOverride]
+    () => NAV.filter((n) => n.roles.includes(user.role)),
+    [user.role]
   );
-
-  const activeLabel = NAV.find((n) => n.id === activePage)?.label || "Dashboard";
 
   const handleNav = useCallback((id: string) => {
     const navItem = NAV.find(item => item.id === id);
-    if (navItem) {
+    if (navItem && currentGroupId) {
       setActivePage(id);
       setMobileOpen(false);
-<<<<<<< Updated upstream
-      router.push(navItem.path);
-=======
       router.push(`${navItem.path}/${currentGroupId}`);
->>>>>>> Stashed changes
     }
-  }, [router]);
+  }, [router, currentGroupId]);
 
-  const handleRoleChange = useCallback((role: Role) => {
-    console.log("Role change requested:", role);
-  }, []);
-
-  const handleMandateSwitch = useCallback(async (newGroupId: number) => {
-    console.log("Switch to group:", newGroupId);
-  }, []);
-
-  // Now conditional returns (after all hooks)
-  if (authLoading) {
-    return (
-      <div className="h-screen flex items-center justify-center">
-        <div className="text-gray-500">Loading...</div>
-      </div>
-    );
-  }
-
-  if (!firebaseUser) {
-    router.push("/login");
-    return null;
-  }
+  if (authLoading) return <div className="h-screen flex items-center justify-center">Loading...</div>;
+  if (!firebaseUser) { router.push("/login"); return null; }
 
   return (
-    <div className="h-screen flex flex-col bg-gray-50 overflow-hidden font-sans">
+    <div className="h-screen flex flex-col bg-gray-50 overflow-hidden">
       {!ratesLoading && <RatesBanner rates={rates} />}
-<<<<<<< Updated upstream
-
-      <Header
-        user={user}
-        groupName={user.group}
-        activeLabel={activeLabel}
-        notifications={MOCK_NOTIFS}
-        roleOverride={roleOverride}
-        mandates={[]}
-        onMandateSwitch={handleMandateSwitch}
-        onRoleChange={handleRoleChange}
-        onOpenMobileSidebar={() => setMobileOpen(true)}
-=======
       <Header 
         user={user} 
         groupName={user.group} 
@@ -160,36 +99,16 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         mandates={[]}
         onMandateSwitch={() => {}}
         onRoleChange={() => {}}
->>>>>>> Stashed changes
       />
-
       <div className="flex flex-1 overflow-hidden">
-        <Sidebar
-          items={visibleNav}
-          active={activePage}
-          onNav={handleNav}
-          rates={rates}
+        <Sidebar 
+            items={visibleNav} 
+            active={activePage} 
+            onNav={handleNav} 
+            rates={rates} 
+            currentGroupId={currentGroupId} 
         />
-
-        {mobileOpen && (
-          <div className="fixed inset-0 z-50 lg:hidden">
-            <div className="fixed inset-0 bg-gray-600/50 backdrop-blur-sm" onClick={() => setMobileOpen(false)} />
-            <Sidebar
-              items={visibleNav}
-              active={activePage}
-              onNav={handleNav}
-              rates={rates}
-              mobile
-              onClose={() => setMobileOpen(false)}
-            />
-          </div>
-        )}
-
-        <main className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8">
-          <div className="max-w-7xl mx-auto">
-            {children}
-          </div>
-        </main>
+        <main className="flex-1 overflow-y-auto p-6">{children}</main>
       </div>
     </div>
   );
