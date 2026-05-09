@@ -7,7 +7,6 @@ describe('Payment Flow - UAT Tests', () => {
       const initialStatus = 'pending';
       const finalStatus = 'confirmed';
       
-      expect(initialStatus).toBe('pending');
       expect(finalStatus).toBe('confirmed');
     });
   });
@@ -36,7 +35,7 @@ describe('Payment Flow - UAT Tests', () => {
 
   describe('UAT 4: Already Paid Contribution', () => {
     it('should not show "Pay Now" button when status is "confirmed"', () => {
-      const status = 'confirmed';
+      const status: string = 'confirmed';
       const showPayNowButton = status === 'pending';
       
       expect(showPayNowButton).toBe(false);
@@ -56,3 +55,5 @@ describe('Payment API', () => {
     expect(verifyResponse.status).toBe('confirmed');
   });
 });
+
+

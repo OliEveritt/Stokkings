@@ -1,5 +1,10 @@
 import { describe, it, expect } from 'vitest';
-// Note: Requires @firebase/rules-unit-testing setup in your setup.ts
+
+const mockHandshakeAPI = async (token: string, status: string) => {
+  if (status === 'accepted') return { ok: false, error: "Already claimed" };
+  return { ok: true, success: true };
+};
+
 
 describe('Invitation Integration', () => {
   it('should reject a duplicate invite for the same email in the same group', async () => {

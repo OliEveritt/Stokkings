@@ -4,19 +4,26 @@ import { X, Shield } from "lucide-react";
 import Link from "next/link";
 import type { NavItem, Rates } from "@/types";
 
+/**
+ * Enhanced SidebarProps to resolve ts(2339) errors.
+ * Includes optional currentGroupId and mobile-specific handlers.
+ */
 interface SidebarProps {
   items: NavItem[];
   active: string;
   onNav: (id: string) => void;
-  rates: Rates;
-  currentGroupId: string;
-  mobile?: boolean;
-  onClose?: () => void;
+  rates: Rates | null;
+  mobileOpen: boolean; 
+  setMobileOpen: (open: boolean) => void;
+  currentGroupId?: string | null; // Fixed: Property now exists for US-2.1
 }
 
-// Added explicit Interface for Content to resolve "any" warnings
+/**
+ * Interface for internal content wrapper
+ */
 interface SidebarContentProps extends SidebarProps {
   showClose?: boolean;
+  onClose?: () => void;
 }
 
 function SidebarContent({ 
@@ -29,34 +36,44 @@ function SidebarContent({
 }: SidebarContentProps) {
   return (
     <>
+      {/* Branding Section */}
       <div className="flex items-center justify-between px-5 h-16 border-b border-gray-100">
         <div className="flex items-center gap-2">
-          <Shield className="text-emerald-600" size={20} />
-          <span className="font-bold text-gray-800">Stokkings</span>
+          <div className="p-1.5 bg-emerald-100 rounded-lg">
+            <Shield className="text-emerald-600" size={18} />
+          </div>
+          <span className="font-black text-gray-900 tracking-tight">Stokkings</span>
         </div>
         {showClose && (
-          <button onClick={onClose} className="text-gray-500 hover:text-gray-700 transition">
+          <button 
+            onClick={onClose} 
+            className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-xl transition-all"
+          >
             <X size={20} />
           </button>
         )}
       </div>
 
-      <nav className="flex-1 py-4 px-3 space-y-1">
+      {/* Navigation Section */}
+      <nav className="flex-1 py-6 px-4 space-y-1 overflow-y-auto">
         {items.map((item: NavItem) => {
           const Icon = item.icon;
           const isActive = item.id === active;
 
-          // US-2.1: Navigation for Invitation Management
+          // US-2.1: Navigation for Invitation Management Handshake
           if (item.id === "invitations") {
             return (
               <Link
                 key={item.id}
-                href={`/groups/${currentGroupId}/invite`}
-                className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                href={currentGroupId ? `/groups/${currentGroupId}/invite` : '/invitations'}
+                className={`flex items-center gap-3 px-4 py-3 rounded-2xl text-xs font-black uppercase tracking-widest transition-all ${
                   isActive 
-                    ? "bg-emerald-50 text-emerald-700 shadow-sm" 
-                    : "text-gray-600 hover:bg-gray-50"
+                    ? "bg-emerald-600 text-white shadow-lg shadow-emerald-100" 
+                    : "text-gray-400 hover:bg-gray-50 hover:text-emerald-600"
                 }`}
+                onClick={() => {
+                  if (showClose && onClose) onClose();
+                }}
               >
                 <Icon size={18} />
                 <span className="flex-1">{item.label}</span>
@@ -64,18 +81,18 @@ function SidebarContent({
             );
           }
 
-          // Default internal state navigation for dashboard sections
+          // Default internal navigation for dashboard sections
           return (
             <button
               key={item.id}
               onClick={() => {
                 onNav(item.id);
-                if (showClose && onClose) onClose(); // Auto-close mobile drawer on nav
+                if (showClose && onClose) onClose(); 
               }}
-              className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+              className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl text-xs font-black uppercase tracking-widest transition-all ${
                 isActive 
-                  ? "bg-emerald-50 text-emerald-700 shadow-sm" 
-                  : "text-gray-600 hover:bg-gray-50"
+                  ? "bg-emerald-600 text-white shadow-lg shadow-emerald-100" 
+                  : "text-gray-400 hover:bg-gray-50 hover:text-emerald-600"
               }`}
             >
               <Icon size={18} />
@@ -89,23 +106,34 @@ function SidebarContent({
 }
 
 export default function Sidebar(props: SidebarProps) {
-  if (props.mobile) {
-    return (
-      <div className="fixed inset-0 z-50 flex lg:hidden">
-        <div 
-          className="fixed inset-0 bg-gray-900/40 backdrop-blur-sm transition-opacity" 
-          onClick={props.onClose} 
-        />
-        <div className="relative w-64 bg-white h-full shadow-2xl flex flex-col">
-          <SidebarContent {...props} showClose />
-        </div>
-      </div>
-    );
-  }
+  const { mobileOpen, setMobileOpen } = props;
 
   return (
-    <div className="hidden lg:flex flex-col w-64 bg-white border-r border-gray-200 h-full">
-      <SidebarContent {...props} />
-    </div>
+    <>
+      {/* Desktop View: Fixed Sidebar */}
+      <aside className="hidden lg:flex flex-col w-72 bg-white border-r border-gray-100 h-full">
+        <SidebarContent {...props} />
+      </aside>
+
+      {/* Mobile View: Slide-over Drawer */}
+      {mobileOpen && (
+        <div className="fixed inset-0 z-[100] flex lg:hidden">
+          {/* Backdrop Overlay */}
+          <div 
+            className="fixed inset-0 bg-gray-900/60 backdrop-blur-sm animate-in fade-in duration-300" 
+            onClick={() => setMobileOpen(false)} 
+          />
+          
+          {/* Drawer Panel */}
+          <div className="relative w-72 bg-white h-full shadow-2xl flex flex-col animate-in slide-in-from-left duration-500">
+            <SidebarContent 
+              {...props} 
+              showClose 
+              onClose={() => setMobileOpen(false)} 
+            />
+          </div>
+        </div>
+      )}
+    </>
   );
 }

@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { useFirebaseAuth } from "@/context/FirebaseAuthContext";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import Cookies from "js-cookie"; // Ensure you've installed 'js-cookie'
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
@@ -13,12 +14,10 @@ export default function LoginPage() {
   const { login, user } = useFirebaseAuth();
   const router = useRouter();
 
-  // Log when user changes
+  // Redirect if a session cookie already exists
   useEffect(() => {
-    console.log("LoginPage: user changed:", user?.email, user?.role);
-    if (user) {
-      console.log("LoginPage: redirecting to dashboard");
-      window.location.href = "/dashboard";
+    if (user && Cookies.get("session")) {
+      router.push("/dashboard");
     }
   }, [user, router]);
 
@@ -28,10 +27,24 @@ export default function LoginPage() {
     setLoading(true);
 
     try {
-      console.log("LoginPage: calling login for", email);
-      await login(email, password);
-      console.log("LoginPage: login completed");
-      // useEffect will handle redirect when user state updates
+      // 1. Perform the Firebase login
+      const userCredential = await login(email, password);
+      
+      // 2. Get the Firebase ID Token
+      const token = await userCredential.user.getIdToken();
+
+      // 3. Set the 'session' cookie that the middleware expects
+      // 'expires: 7' keeps it for a week; 'secure: true' for production
+      Cookies.set("session", token, { 
+        expires: 7, 
+        path: "/",
+        sameSite: "lax",
+        secure: process.env.NODE_ENV === "production" 
+      });
+
+      console.log("LoginPage: Session cookie set, navigating to dashboard...");
+      router.push("/dashboard");
+
     } catch (err: any) {
       console.error("LoginPage: login error", err);
       setError(err.message || "Invalid email or password");
@@ -53,12 +66,14 @@ export default function LoginPage() {
           </div>
         )}
 
-        <form onSubmit={handleSubmit} className="space-y-4">
+        {/* Added method="POST" for security and forced preventDefault */}
+        <form onSubmit={handleSubmit} method="POST" className="space-y-4">
           <div>
             <label className="block text-xs font-bold text-gray-700 uppercase ml-1">Email Address</label>
             <input 
               name="email" 
               type="email" 
+              autoComplete="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required 
@@ -71,6 +86,7 @@ export default function LoginPage() {
             <input 
               name="password" 
               type="password" 
+              autoComplete="current-password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required 

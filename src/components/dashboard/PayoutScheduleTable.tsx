@@ -19,16 +19,22 @@ export default function PayoutScheduleTable({
 }) {
 
   const handleMove = async (index: number, direction: 'up' | 'down') => {
+    // We sort here to ensure the index from the map matches the logical position
+    const sortedSchedule = [...schedule].sort((a, b) => a.position - b.position);
     const newIndex = direction === 'up' ? index - 1 : index + 1;
-    if (newIndex < 0 || newIndex >= schedule.length) return;
+    
+    if (newIndex < 0 || newIndex >= sortedSchedule.length) return;
 
-    const itemA = schedule[index];
-    const itemB = schedule[newIndex];
+    const itemA = sortedSchedule[index];
+    const itemB = sortedSchedule[newIndex];
 
     try {
       const response = await fetch('/api/payouts', {
         method: 'PATCH',
-       ers: { 'Content-Type': 'application/json' },
+        // FIXED: Changed 'ers' to 'headers'
+        headers: { 
+          'Content-Type': 'application/json' 
+        },
         body: JSON.stringify({
           updates: [
             { id: itemA.id, newPosition: itemB.position },
@@ -57,7 +63,7 @@ export default function PayoutScheduleTable({
           </tr>
         </thead>
         <tbody className="divide-y divide-gray-50">
-          {schedule.sort((a, b) => a.position - b.position).map((item, index) => (
+          {[...schedule].sort((a, b) => a.position - b.position).map((item, index) => (
             <tr key={item.id} className="hover:bg-gray-50/50 transition-colors">
               <td className="px-6 py-4">
                 <span className="flex items-center justify-center mx-auto w-8 h-8 rounded-full bg-emerald-50 text-emerald-700 font-black text-xs border border-emerald-100 shadow-sm">

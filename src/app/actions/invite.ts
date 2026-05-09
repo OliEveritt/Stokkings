@@ -1,87 +1,132 @@
 "use server";
 
-import { db } from "@/lib/firebase";
-import { 
-  doc, 
-  setDoc, 
-  collection, 
-  query, 
-  where, 
-  getDocs 
-} from "firebase/firestore";
+import { adminDb } from "@/lib/firebase-admin";
+import { Timestamp, FieldValue } from "firebase-admin/firestore";
 import { v4 as uuidv4 } from "uuid";
 
 /**
- * Sprint 2: Invitation System Implementation
- * Aubrey de Bruyn (2609389)
+ * US-2.1: Secure Member Invitation
+ * Checks if email exists in the specific group before generating a pending token.
  */
-export async function createInvitation(email: string, groupId: string, adminId: string) {
+export async function createInvitation(email: string, groupId: string, userId: string) {
   try {
-    // 1. Validate Admin Context
-    if (!adminId) {
-      return { success: false, error: "Authentication Error: No Admin ID detected." };
-    }
-
     const normalizedEmail = email.toLowerCase().trim();
 
-    // 2. UAT 3: Duplicate Detection (Check if already a group member)
-    const memberQuery = query(
-      collection(db, "group_members"),
-      where("groupId", "==", groupId),
-      where("email", "==", normalizedEmail)
-    );
-    
-    const memberSnapshot = await getDocs(memberQuery);
-    
-    if (!memberSnapshot.empty) {
-      return { 
-        success: false, 
-        error: "Audit Alert: This user is already a member of the group." 
-      };
+    // 1. RBAC Check: Ensure requester is an Admin of the specific group
+    const requesterRef = adminDb.doc(`groups/${groupId}/group_members/${userId}`);
+    const requesterSnap = await requesterRef.get();
+
+    if (!requesterSnap.exists || requesterSnap.data()?.role !== "Admin") {
+      return { success: false, error: "Unauthorized: Only group admins can send invitations." };
     }
 
-    // 3. Logic: Token Generation & Expiry (T + 7 Days)
-    const token = uuidv4(); 
-    const expiresAt = new Date();
-    expiresAt.setDate(expiresAt.getDate() + 7);
+    // 2. UAT-3: Group-specific Member Check
+    // Validates if the email is already in the target group's members subcollection
+    const memberSnapshot = await adminDb
+      .collection("groups")
+      .doc(groupId)
+      .collection("group_members")
+      .where("email", "==", normalizedEmail)
+      .get();
 
-    // 4. Persistence: Write to Firestore Ledger
-    // Using the token as the document ID for direct retrieval
-    await setDoc(doc(db, "invitations", token), {
+    if (!memberSnapshot.empty) {
+      return { success: false, error: "This user is already a member of this group." };
+    }
+
+    // 3. UAT-4: Generate secure token (7-day expiry)
+    const token = uuidv4();
+    const expiresAtDate = new Date();
+    expiresAtDate.setDate(expiresAtDate.getDate() + 7);
+
+    // 4. Persistence: Default status to "pending"
+    const inviteData = {
       email: normalizedEmail,
-      groupId: groupId,
-      invitedBy: adminId,
-      token: token,
-      status: "pending",
-      createdAt: new Date().toISOString(),
-      expiresAt: expiresAt.toISOString(),
-    });
+      groupId,
+      invitedBy: userId,
+      token,
+      status: "pending", // Default status per requirements
+      expiresAt: Timestamp.fromDate(expiresAtDate),
+      createdAt: FieldValue.serverTimestamp(),
+    };
 
-    // 5. Dispatch Email (Logical Bridge)
-    const inviteLink = `${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/invite/${token}`;
-    
-    // Optional: Trigger external email service
-    await sendEmailNotification(normalizedEmail, inviteLink, groupId);
+    await adminDb.collection("invitations").doc(token).set(inviteData);
 
     return { 
       success: true, 
-      token: token,
-      expiresAt: expiresAt.toISOString() 
+      token,
+      expiresAt: expiresAtDate.toISOString() 
     };
-
   } catch (error: any) {
-    console.error("Invitation Action Error:", error.message);
-    return { 
-      success: false, 
-      error: "Critical Failure: " + (error.message || "System failed to generate invitation.")
-    };
+    console.error("Invitation Creation Error:", error.message);
+    return { success: false, error: "Internal server error." };
   }
 }
 
 /**
- * Logical Bridge for Email Services (e.g., Resend, SendGrid)
+ * US-2.2: Accept Invitation & Onboarding logic
+ * Handles existing users and forces new users to be added to 'users' before 'groups'.
  */
-async function sendEmailNotification(to: string, link: string, group: string) {
-  // Logic to trigger your email API would go here
-  console.log(`Email dispatched to ${to} for group ${group}. Link: ${link}`);
+export async function acceptInvitationAction(params: {
+  token: string;
+  userId: string;
+  email: string;
+  firstName: string;
+  surname: string;
+}) {
+  try {
+    const inviteRef = adminDb.collection("invitations").doc(params.token);
+    const inviteSnap = await inviteRef.get();
+
+    if (!inviteSnap.exists) {
+      return { success: false, error: "Invalid invitation link." };
+    }
+
+    const inviteData = inviteSnap.data()!;
+
+    // Validation checks
+    if (inviteData.expiresAt.toDate() < new Date()) {
+      await inviteRef.update({ status: "expired" });
+      return { success: false, error: "This invitation has expired." };
+    }
+
+    if (inviteData.status !== "pending") {
+      return { success: false, error: "This invitation has already been used." };
+    }
+
+    const batch = adminDb.batch();
+    
+    // 1. Provision User Document if it's a new sign-up
+    const userRef = adminDb.doc(`users/${params.userId}`);
+    const userSnap = await userRef.get();
+    
+    if (!userSnap.exists) {
+      batch.set(userRef, {
+        email: params.email,
+        firstName: params.firstName,
+        surname: params.surname,
+        role: "Member", // Default role for new sign-ups
+        createdAt: FieldValue.serverTimestamp(),
+      });
+    }
+
+    // 2. Add to Group Members subcollection
+    const memberRef = adminDb.doc(`groups/${inviteData.groupId}/group_members/${params.userId}`);
+    batch.set(memberRef, {
+      email: params.email,
+      firstName: params.firstName,
+      surname: params.surname,
+      role: "Member",
+      joinedAt: FieldValue.serverTimestamp(),
+    });
+
+    // 3. Mark invitation as accepted
+    batch.update(inviteRef, { status: "accepted" });
+
+    await batch.commit();
+
+    return { success: true, groupId: inviteData.groupId };
+  } catch (error: any) {
+    console.error("Accept Action Error:", error.message);
+    return { success: false, error: "Failed to join group." };
+  }
 }

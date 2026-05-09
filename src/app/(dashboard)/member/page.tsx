@@ -1,56 +1,128 @@
 "use client";
 
-import { Wallet, ArrowUpRight, History, Users } from "lucide-react";
+import { useEffect, useState } from "react";
+import { useFirebaseAuth } from "@/context/FirebaseAuthContext";
+import { useParams, useRouter } from "next/navigation";
+import { collection, getDocs, doc, updateDoc } from "firebase/firestore";
+import { db } from "@/lib/firebase";
 
-export default function MemberDashboard() {
-  return (
-    <div className="p-8 max-w-6xl animate-in fade-in slide-in-from-bottom-4 duration-700">
-      <header className="mb-10">
-        <h1 className="text-3xl font-black text-gray-900">Member Dashboard</h1>
-        <p className="text-gray-500 font-medium mt-1">Welcome to the group. Your contributions start here.</p>
-      </header>
+interface Member {
+  id: string;
+  email: string;
+  role: string;
+  joinedAt: any;
+}
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
-        {/* BALANCE CARD */}
-        <div className="bg-emerald-600 rounded-[2.5rem] p-8 text-white shadow-2xl shadow-emerald-900/20 relative overflow-hidden">
-          <div className="relative z-10">
-            <p className="text-xs font-black uppercase tracking-[0.2em] opacity-80 mb-2">Total Contribution</p>
-            <h2 className="text-5xl font-black tracking-tighter">R0.00</h2>
-            <div className="mt-8 flex gap-2">
-               <button className="bg-white/20 hover:bg-white/30 backdrop-blur-md px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2">
-                 Make Payment <ArrowUpRight size={14} />
-               </button>
-            </div>
-          </div>
-          <Wallet className="absolute -right-4 -bottom-4 text-white/10" size={120} />
-        </div>
+export default function MembersPage() {
+  const { user: currentUser, userRole, loading: authLoading } = useFirebaseAuth();
+  const params = useParams();
+  const router = useRouter();
+  const groupId = (params.groupId || params.id) as string;
 
-        {/* STATS CARDS */}
-        <div className="bg-white rounded-[2.5rem] p-8 border border-gray-100 shadow-xl shadow-gray-200/50 flex flex-col justify-between">
-          <div className="w-12 h-12 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center mb-4">
-            <Users size={24} />
-          </div>
-          <div>
-            <p className="text-xs font-black text-gray-400 uppercase tracking-widest">Group Status</p>
-            <p className="text-lg font-bold text-gray-900 mt-1">Active Member</p>
-          </div>
-        </div>
+  const [members, setMembers] = useState<Member[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [message, setMessage] = useState<{ type: string; text: string } | null>(null);
 
-        <div className="bg-white rounded-[2.5rem] p-8 border border-gray-100 shadow-xl shadow-gray-200/50 flex flex-col justify-between">
-          <div className="w-12 h-12 bg-amber-50 text-amber-600 rounded-2xl flex items-center justify-center mb-4">
-            <History size={24} />
-          </div>
-          <div>
-            <p className="text-xs font-black text-gray-400 uppercase tracking-widest">Next Payout</p>
-            <p className="text-lg font-bold text-gray-900 mt-1">Pending Schedule</p>
-          </div>
+  const isAdmin = userRole === "Admin";
+
+  useEffect(() => {
+    if (!groupId || !isAdmin || authLoading) return;
+
+    const fetchMembers = async () => {
+      try {
+        const membersRef = collection(db, "groups", groupId, "group_members");
+        const snapshot = await getDocs(membersRef);
+        const membersList = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Member));
+        setMembers(membersList);
+      } catch (err) {
+        console.error("Fetch Error:", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchMembers();
+  }, [groupId, isAdmin, authLoading]);
+
+  const updateRole = async (userId: string, newRole: string) => {
+    try {
+      const memberRef = doc(db, "groups", groupId, "group_members", userId);
+      await updateDoc(memberRef, { role: newRole });
+      setMembers(prev => prev.map(m => m.id === userId ? { ...m, role: newRole } : m));
+      setMessage({ type: "success", text: "Role updated successfully" });
+      setTimeout(() => setMessage(null), 3000);
+    } catch (err) {
+      console.error("Update Error:", err);
+      setMessage({ type: "error", text: "Failed to update role" });
+    }
+  };
+
+  if (authLoading || loading) return <div className="p-8">Loading members...</div>;
+
+  if (!currentUser || !isAdmin) {
+    return (
+      <div className="flex items-center justify-center min-h-[50vh]">
+        <div className="text-center">
+          <div className="text-red-600 text-6xl mb-4">⛔</div>
+          <h1 className="text-2xl font-bold text-gray-900 mb-2">Access Denied</h1>
+          <p className="text-gray-600">Only administrators can view members.</p>
+          <button onClick={() => router.push("/dashboard")} className="mt-4 bg-blue-500 text-white px-4 py-2 rounded">
+            Return to Dashboard
+          </button>
         </div>
       </div>
+    );
+  }
 
-      {/* RECENT ACTIVITY PLACEHOLDER */}
-      <div className="bg-gray-50/50 border-2 border-dashed border-gray-200 rounded-[3rem] p-12 text-center">
-        <p className="text-sm font-bold text-gray-400 uppercase tracking-[0.3em]">No Transactions Yet</p>
-        <p className="text-xs text-gray-400 mt-2">Your payment history will appear here once you make your first contribution.</p>
+  return (
+    <div className="p-6 max-w-4xl mx-auto">
+      <h1 className="text-2xl font-bold mb-4">Group Members</h1>
+      {message && (
+        <div className={`mb-4 p-3 rounded ${message.type === "success" ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"}`}>
+          {message.text}
+        </div>
+      )}
+      <div className="bg-white rounded-xl shadow overflow-hidden">
+        <table className="min-w-full divide-y divide-gray-200">
+          <thead className="bg-gray-50">
+            <tr>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Email</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Role</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Joined</th>
+              <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Actions</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-gray-200">
+            {members.map(member => (
+              <tr key={member.id} className="hover:bg-gray-50">
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{member.email}</td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm">
+                  <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                    member.role === "Admin" ? "bg-emerald-100 text-emerald-800" :
+                    member.role === "Treasurer" ? "bg-blue-100 text-blue-800" :
+                    "bg-gray-100 text-gray-800"
+                  }`}>
+                    {member.role}
+                  </span>
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                  {member.joinedAt?.toDate?.().toLocaleDateString() || "Unknown"}
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap text-right text-sm">
+                  <select
+                    value={member.role}
+                    onChange={(e) => updateRole(member.id, e.target.value)}
+                    className="border rounded px-2 py-1 text-sm bg-white"
+                    disabled={member.id === currentUser.uid} // Safeguard
+                  >
+                    <option value="Member">Member</option>
+                    <option value="Treasurer">Treasurer</option>
+                    <option value="Admin">Admin</option>
+                  </select>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
       </div>
     </div>
   );

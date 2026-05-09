@@ -34,7 +34,6 @@ export default function ContributionsPage() {
     }
   }, [user]);
 
-  // Fetch only the logged-in user's contributions, sorted by most recent first (UAT 3)
   const fetchContributions = async () => {
     try {
       setLoading(true);
@@ -57,7 +56,6 @@ export default function ContributionsPage() {
     }
   };
 
-  // Handle "Pay Now" button click - redirects to Stripe checkout
   const handlePayNow = async (contributionId: string, amount: number) => {
     setProcessingPayment(contributionId);
     setError(null);
@@ -66,7 +64,7 @@ export default function ContributionsPage() {
       const token = await user?.getIdToken();
       const response = await fetch("/api/payments/checkout", {
         method: "POST",
-       ers: {
+        headers: {
           "Content-Type": "application/json",
           "Authorization": `Bearer ${token}`,
         },
@@ -88,7 +86,6 @@ export default function ContributionsPage() {
     }
   };
 
-  console.log("Contribution status:", status);
   const getStatusBadge = (status: string) => {
     switch (status?.toLowerCase()) {
       case "confirmed":
@@ -139,7 +136,6 @@ export default function ContributionsPage() {
         </div>
       )}
 
-      {/* UAT 2: Empty State */}
       {!error && contributions.length === 0 && (
         <div className="bg-white rounded-lg border border-gray-200 p-12 text-center">
           <div className="text-6xl mb-4">💰</div>
@@ -148,7 +144,6 @@ export default function ContributionsPage() {
         </div>
       )}
 
-      {/* UAT 1: Contributions List with Status Badges */}
       {!error && contributions.length > 0 && (
         <div className="bg-white shadow-sm rounded-lg border border-gray-200 overflow-hidden">
           <div className="overflow-x-auto">
@@ -174,8 +169,7 @@ export default function ContributionsPage() {
                       {getStatusBadge(contribution.status)}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      {/* UAT 4: Pay Now button only shows for pending contributions */}
-                      {contribution.status === "pending" ? (
+                      {contribution.status?.toLowerCase() === "pending" ? (
                         <button
                           onClick={() => handlePayNow(contribution.id, contribution.amount)}
                           disabled={processingPayment === contribution.id}
@@ -184,7 +178,7 @@ export default function ContributionsPage() {
                           {processingPayment === contribution.id ? "Processing..." : "Pay Now"}
                         </button>
                       ) : (
-                        <span className="text-sm text-green-600">Paid</span>
+                        <span className="text-sm text-green-600 font-medium">Paid</span>
                       )}
                     </td>
                   </tr>
