@@ -10,18 +10,12 @@ export default async function InvitePage({ params }: { params: Promise<{ token: 
    * 2. FIX: Query by the 'token' field instead of .doc(token)
    * Based on image_0bc496.png, the UUID is stored as a field value.
    */
-  const inviteQuery = await adminDb.collection("invitations")
-    .where("token", "==", token)
-    .limit(1)
-    .get();
+  const inviteDoc = await adminDb.collection("invitations").doc(token).get();
 
-  // 3. Check if the query returned a result
-  if (inviteQuery.empty) {
-    notFound(); 
-  }
-
-  const inviteDoc = inviteQuery.docs[0];
-  const inviteData = inviteDoc.data();
+if (!inviteDoc.exists) {
+  notFound();
+}
+const inviteData = inviteDoc.data()!;
 
   // UAT-4 Enforcement: Verify invitation link is still pending.
   if (inviteData.status !== "pending") {

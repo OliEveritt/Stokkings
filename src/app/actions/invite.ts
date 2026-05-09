@@ -6,22 +6,20 @@ import { v4 as uuidv4 } from "uuid";
 
 /**
  * US-2.1: Secure Member Invitation
- * Checks if email exists in the specific group before generating a pending token.
  */
 export async function createInvitation(email: string, groupId: string, userId: string) {
   try {
     const normalizedEmail = email.toLowerCase().trim();
 
-    // 1. RBAC Check: Ensure requester is an Admin of the specific group
-    const requesterRef = adminDb.doc(`groups/${groupId}/group_members/${userId}`);
-    const requesterSnap = await requesterRef.get();
+    // 1. RBAC Check: Verify requester is an Admin
+    const userSnap = await adminDb.collection("users").doc(userId).get();
+    const userRole = userSnap.data()?.role;
 
-    if (!requesterSnap.exists || requesterSnap.data()?.role !== "Admin") {
+    if (!userSnap.exists || userRole !== "Admin") {
       return { success: false, error: "Unauthorized: Only group admins can send invitations." };
     }
 
     // 2. UAT-3: Group-specific Member Check
-    // Validates if the email is already in the target group's members subcollection
     const memberSnapshot = await adminDb
       .collection("groups")
       .doc(groupId)
@@ -33,29 +31,24 @@ export async function createInvitation(email: string, groupId: string, userId: s
       return { success: false, error: "This user is already a member of this group." };
     }
 
-    // 3. UAT-4: Generate secure token (7-day expiry)
+    // 3. Generate secure token (7-day expiry)
     const token = uuidv4();
     const expiresAtDate = new Date();
     expiresAtDate.setDate(expiresAtDate.getDate() + 7);
 
-    // 4. Persistence: Default status to "pending"
     const inviteData = {
       email: normalizedEmail,
       groupId,
       invitedBy: userId,
       token,
-      status: "pending", // Default status per requirements
+      status: "pending",
       expiresAt: Timestamp.fromDate(expiresAtDate),
       createdAt: FieldValue.serverTimestamp(),
     };
 
     await adminDb.collection("invitations").doc(token).set(inviteData);
 
-    return { 
-      success: true, 
-      token,
-      expiresAt: expiresAtDate.toISOString() 
-    };
+    return { success: true, token, expiresAt: expiresAtDate.toISOString() };
   } catch (error: any) {
     console.error("Invitation Creation Error:", error.message);
     return { success: false, error: "Internal server error." };
@@ -64,7 +57,7 @@ export async function createInvitation(email: string, groupId: string, userId: s
 
 /**
  * US-2.2: Accept Invitation & Onboarding logic
- * Handles existing users and forces new users to be added to 'users' before 'groups'.
+ * IMPORTANT: Never overwrites name - signup already set it correctly.
  */
 export async function acceptInvitationAction(params: {
   token: string;
@@ -83,7 +76,6 @@ export async function acceptInvitationAction(params: {
 
     const inviteData = inviteSnap.data()!;
 
-    // Validation checks
     if (inviteData.expiresAt.toDate() < new Date()) {
       await inviteRef.update({ status: "expired" });
       return { success: false, error: "This invitation has expired." };
@@ -94,32 +86,30 @@ export async function acceptInvitationAction(params: {
     }
 
     const batch = adminDb.batch();
-    
-    // 1. Provision User Document if it's a new sign-up
-    const userRef = adminDb.doc(`users/${params.userId}`);
-    const userSnap = await userRef.get();
-    
-    if (!userSnap.exists) {
-      batch.set(userRef, {
-        email: params.email,
-        firstName: params.firstName,
-        surname: params.surname,
-        role: "Member", // Default role for new sign-ups
-        createdAt: FieldValue.serverTimestamp(),
-      });
-    }
 
-    // 2. Add to Group Members subcollection
+    // Only set groupId and role - NEVER overwrite name (set by signup form)
+    const userRef = adminDb.doc(`users/${params.userId}`);
+    batch.set(userRef, {
+      email: params.email,
+      groupId: inviteData.groupId,
+      role: "Member",
+    }, { merge: true }); // merge:true preserves existing name field
+
+    // Add to group members subcollection
     const memberRef = adminDb.doc(`groups/${inviteData.groupId}/group_members/${params.userId}`);
     batch.set(memberRef, {
       email: params.email,
-      firstName: params.firstName,
-      surname: params.surname,
       role: "Member",
       joinedAt: FieldValue.serverTimestamp(),
     });
 
-    // 3. Mark invitation as accepted
+    // Add to group members array for dashboard query
+    const groupRef = adminDb.collection("groups").doc(inviteData.groupId);
+    batch.update(groupRef, {
+      members: FieldValue.arrayUnion(params.userId),
+    });
+
+    // Burn token (UAT-4)
     batch.update(inviteRef, { status: "accepted" });
 
     await batch.commit();

@@ -2,24 +2,26 @@
 
 import { useState, useEffect } from "react";
 import { useFirebaseAuth } from "@/context/FirebaseAuthContext";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
-import Cookies from "js-cookie"; // Ensure you've installed 'js-cookie'
+import { Suspense } from "react";
 
-export default function LoginPage() {
+function LoginForm() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const { login, user } = useFirebaseAuth();
   const router = useRouter();
+  const searchParams = useSearchParams();
 
-  // Redirect if a session cookie already exists
+  // Redirect if already logged in
   useEffect(() => {
-    if (user && Cookies.get("session")) {
-      router.push("/dashboard");
+    if (user) {
+      const callbackUrl = searchParams.get("callbackUrl");
+      router.push(callbackUrl || "/dashboard");
     }
-  }, [user, router]);
+  }, [user, router, searchParams]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -27,26 +29,11 @@ export default function LoginPage() {
     setLoading(true);
 
     try {
-      // 1. Perform the Firebase login
-      const userCredential = await login(email, password);
-      
-      // 2. Get the Firebase ID Token
-      const token = await userCredential.user.getIdToken();
-
-      // 3. Set the 'session' cookie that the middleware expects
-      // 'expires: 7' keeps it for a week; 'secure: true' for production
-      Cookies.set("session", token, { 
-        expires: 7, 
-        path: "/",
-        sameSite: "lax",
-        secure: process.env.NODE_ENV === "production" 
-      });
-
-      console.log("LoginPage: Session cookie set, navigating to dashboard...");
-      router.push("/dashboard");
-
+      await login(email, password);
+      // FirebaseAuthContext.login() sets the session cookie
+      // useEffect above handles redirect when user state updates
     } catch (err: any) {
-      console.error("LoginPage: login error", err);
+      console.error("Login error:", err);
       setError(err.message || "Invalid email or password");
       setLoading(false);
     }
@@ -66,36 +53,35 @@ export default function LoginPage() {
           </div>
         )}
 
-        {/* Added method="POST" for security and forced preventDefault */}
-        <form onSubmit={handleSubmit} method="POST" className="space-y-4">
+        <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label className="block text-xs font-bold text-gray-700 uppercase ml-1">Email Address</label>
-            <input 
-              name="email" 
-              type="email" 
+            <input
+              name="email"
+              type="email"
               autoComplete="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              required 
-              className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:ring-emerald-500 outline-none" 
-            />
-          </div>
-          
-          <div>
-            <label className="block text-xs font-bold text-gray-700 uppercase ml-1">Password</label>
-            <input 
-              name="password" 
-              type="password" 
-              autoComplete="current-password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required 
-              className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:ring-emerald-500 outline-none" 
+              required
+              className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:ring-emerald-500 outline-none"
             />
           </div>
 
-          <button 
-            type="submit" 
+          <div>
+            <label className="block text-xs font-bold text-gray-700 uppercase ml-1">Password</label>
+            <input
+              name="password"
+              type="password"
+              autoComplete="current-password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+              className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:ring-emerald-500 outline-none"
+            />
+          </div>
+
+          <button
+            type="submit"
             disabled={loading}
             className="w-full rounded-lg bg-emerald-600 px-4 py-3 text-white font-bold hover:bg-emerald-700 transition-all shadow-lg mt-4 active:scale-[0.98] disabled:opacity-50"
           >
@@ -110,5 +96,13 @@ export default function LoginPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={<div className="flex min-h-screen items-center justify-center">Loading...</div>}>
+      <LoginForm />
+    </Suspense>
   );
 }

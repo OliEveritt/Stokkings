@@ -77,7 +77,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   }, [firebaseUser]);
 
   const userContext = useMemo((): User => ({
-  name: userName,
+  name: userName !== "User" ? userName : (firebaseUser?.name || "User"),
     email: firebaseUser?.email || "",
     avatar: null,
     group: "Stokvel Group",
@@ -162,4 +162,5 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     </div>
   );
 }
+
 

@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useState, Suspense } from "react";
 import { useFirebaseAuth } from "@/context/FirebaseAuthContext";
@@ -63,7 +63,7 @@ function SignUpForm() {
        * Auth Handshake:
        * Ensure your context's signup signature matches (email, password, metadata).
        */
-      await signup(email, password, fullName);
+      await signup(email, password, fullName, phoneValidation.normalized);
 
       // Redirect back to the invitation page or the dashboard
       router.push(redirectTo || "/dashboard");
