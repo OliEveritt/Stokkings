@@ -10,7 +10,7 @@
 import { useEffect, useState } from "react";
 import { useFirebaseAuth } from "@/context/FirebaseAuthContext";
 import { collection, query, where, getDocs, orderBy } from "firebase/firestore";
-import { db } from "@/lib/firebase";
+import { auth, db } from "@/lib/firebase";
 
 interface Contribution {
   id: string;
@@ -63,10 +63,10 @@ export default function ContributionsPage() {
     setError(null);
 
     try {
-      const token = await user?.getIdToken();
+      const token = await auth.currentUser?.getIdToken();
       const response = await fetch("/api/payments/checkout", {
         method: "POST",
-       ers: {
+        headers: {
           "Content-Type": "application/json",
           "Authorization": `Bearer ${token}`,
         },

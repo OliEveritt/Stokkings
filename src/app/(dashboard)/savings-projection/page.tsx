@@ -16,6 +16,12 @@ interface Contribution {
   amount: number;
   contributionDate: string;
   status: string;
+  groupId: string;
+}
+
+interface GroupOption {
+  id: string;
+  name: string;
 }
 
 function formatZAR(value: number) {
@@ -29,6 +35,8 @@ export default function SavingsProjectionPage() {
   const { user, loading: authLoading } = useFirebaseAuth();
   const { rates, loading: ratesLoading } = useRates();
   const [contributions, setContributions] = useState<Contribution[]>([]);
+  const [groups, setGroups] = useState<GroupOption[]>([]);
+  const [selectedGroupId, setSelectedGroupId] = useState<string>("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -36,17 +44,24 @@ export default function SavingsProjectionPage() {
     if (!user) return;
     let cancelled = false;
 
-    async function fetchContributions() {
+    async function fetchData() {
       try {
-        const q = query(
-          collection(db, "contributions"),
-          where("userId", "==", user!.uid)
+        const [contribSnap, groupsSnap] = await Promise.all([
+          getDocs(query(collection(db, "contributions"), where("userId", "==", user!.uid))),
+          getDocs(query(collection(db, "groups"), where("members", "array-contains", user!.uid))),
+        ]);
+        if (cancelled) return;
+        const contribs = contribSnap.docs.map(
+          (d) => ({ id: d.id, ...d.data() } as Contribution)
         );
-        const snap = await getDocs(q);
-        if (!cancelled) {
-          setContributions(
-            snap.docs.map((d) => ({ id: d.id, ...d.data() } as Contribution))
-          );
+        const groupList: GroupOption[] = groupsSnap.docs.map((d) => ({
+          id: d.id,
+          name: (d.data().group_name as string) ?? (d.data().name as string) ?? "Group",
+        }));
+        setContributions(contribs);
+        setGroups(groupList);
+        if (groupList.length > 0) {
+          setSelectedGroupId((current) => current || groupList[0].id);
         }
       } catch {
         if (!cancelled) setError("Failed to load contributions.");
@@ -55,7 +70,7 @@ export default function SavingsProjectionPage() {
       }
     }
 
-    fetchContributions();
+    fetchData();
     return () => { cancelled = true; };
   }, [user]);
 
@@ -78,8 +93,13 @@ export default function SavingsProjectionPage() {
   }
 
   const confirmedContributions = contributions.filter(
-    (c) => c.status?.toLowerCase() === "confirmed"
+    (c) =>
+      c.status?.toLowerCase() === "confirmed" &&
+      (!selectedGroupId || c.groupId === selectedGroupId)
   );
+
+  const selectedGroupName =
+    groups.find((g) => g.id === selectedGroupId)?.name ?? null;
 
   const hasContributions = confirmedContributions.length > 0;
 
@@ -105,11 +125,33 @@ export default function SavingsProjectionPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-gray-900">Savings Projection</h1>
-        <p className="text-gray-500 mt-1">
-          See how your savings could grow using the current prime lending rate.
-        </p>
+      <div className="flex flex-wrap items-end justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Savings Projection</h1>
+          <p className="text-gray-500 mt-1">
+            {selectedGroupName
+              ? <>Showing projection for <span className="font-semibold text-gray-700">{selectedGroupName}</span> using the current prime lending rate.</>
+              : "See how your savings could grow using the current prime lending rate."}
+          </p>
+        </div>
+        {groups.length > 1 && (
+          <div>
+            <label className="text-[10px] font-bold uppercase tracking-wider text-gray-400 ml-1">
+              Group
+            </label>
+            <select
+              value={selectedGroupId}
+              onChange={(e) => setSelectedGroupId(e.target.value)}
+              className="mt-1 px-3 py-2 rounded-lg bg-white border border-gray-200 focus:border-emerald-500 outline-none text-sm font-semibold"
+            >
+              {groups.map((g) => (
+                <option key={g.id} value={g.id}>
+                  {g.name}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
       </div>
 
       {!hasContributions ? (
@@ -130,28 +172,53 @@ export default function SavingsProjectionPage() {
             <div className="bg-white rounded-xl border border-gray-200 p-5">
               <p className="text-xs text-gray-500 uppercase tracking-wide mb-1">Current Savings</p>
               <p className="text-2xl font-bold text-gray-900">{formatZAR(principal)}</p>
+              <p className="text-xs text-gray-500 mt-1">
+                From {confirmedContributions.length} confirmed contribution{confirmedContributions.length === 1 ? "" : "s"}
+              </p>
             </div>
             <div className="bg-white rounded-xl border border-gray-200 p-5">
-              <p className="text-xs text-gray-500 uppercase tracking-wide mb-1">Projected at 6 months</p>
-              <p className="text-2xl font-bold text-blue-600">
-                {at6 ? formatZAR(at6.withInterest) : "—"}
-              </p>
-              {at6 && (
-                <p className="text-xs text-green-600 mt-1">
-                  +{formatZAR(at6.withInterest - principal)} with interest
-                </p>
-              )}
+              <p className="text-xs text-gray-500 uppercase tracking-wide mb-2">Projected at 6 months</p>
+              <div className="space-y-2">
+                <div>
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400">With interest</p>
+                  <p className="text-2xl font-bold text-blue-600">
+                    {at6 ? formatZAR(at6.withInterest) : "—"}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400">Without interest</p>
+                  <p className="text-lg font-semibold text-gray-700">
+                    {at6 ? formatZAR(at6.withoutInterest) : "—"}
+                  </p>
+                </div>
+                {at6 && (
+                  <p className="text-xs text-green-600 pt-1">
+                    +{formatZAR(at6.withInterest - at6.withoutInterest)} from interest
+                  </p>
+                )}
+              </div>
             </div>
             <div className="bg-white rounded-xl border border-gray-200 p-5">
-              <p className="text-xs text-gray-500 uppercase tracking-wide mb-1">Projected at 12 months</p>
-              <p className="text-2xl font-bold text-blue-600">
-                {at12 ? formatZAR(at12.withInterest) : "—"}
-              </p>
-              {at12 && (
-                <p className="text-xs text-green-600 mt-1">
-                  +{formatZAR(at12.withInterest - principal)} with interest
-                </p>
-              )}
+              <p className="text-xs text-gray-500 uppercase tracking-wide mb-2">Projected at 12 months</p>
+              <div className="space-y-2">
+                <div>
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400">With interest</p>
+                  <p className="text-2xl font-bold text-blue-600">
+                    {at12 ? formatZAR(at12.withInterest) : "—"}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400">Without interest</p>
+                  <p className="text-lg font-semibold text-gray-700">
+                    {at12 ? formatZAR(at12.withoutInterest) : "—"}
+                  </p>
+                </div>
+                {at12 && (
+                  <p className="text-xs text-green-600 pt-1">
+                    +{formatZAR(at12.withInterest - at12.withoutInterest)} from interest
+                  </p>
+                )}
+              </div>
             </div>
           </div>
 

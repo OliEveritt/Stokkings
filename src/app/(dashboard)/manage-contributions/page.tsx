@@ -11,7 +11,7 @@
 
 import { useEffect, useState } from "react";
 import { useFirebaseAuth } from "@/context/FirebaseAuthContext";
-import { collection, getDocs, updateDoc, doc } from "firebase/firestore";
+import { collection, getDocs, query, where, updateDoc, doc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 
 interface Contribution {
@@ -26,9 +26,16 @@ interface Contribution {
   userName?: string;
 }
 
+interface GroupOption {
+  id: string;
+  name: string;
+}
+
 export default function ManageContributionsPage() {
   const { user, loading: authLoading } = useFirebaseAuth();
   const [contributions, setContributions] = useState<Contribution[]>([]);
+  const [groups, setGroups] = useState<GroupOption[]>([]);
+  const [selectedGroupId, setSelectedGroupId] = useState<string>("");
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [editingConfirmedBy, setEditingConfirmedBy] = useState<string | null>(null);
@@ -38,31 +45,54 @@ export default function ManageContributionsPage() {
   // ROLE CHECK: Only Treasurers and Admins can access this page
   const isTreasurerOrAdmin = user?.role === "Treasurer" || user?.role === "Admin";
 
+  // Load groups the user belongs to
   useEffect(() => {
-    if (user && isTreasurerOrAdmin) {
-      fetchContributions();
-    }
-  }, [user]);
+    if (!user || !isTreasurerOrAdmin) return;
+    (async () => {
+      try {
+        const snap = await getDocs(
+          query(collection(db, "groups"), where("members", "array-contains", user.uid))
+        );
+        const list: GroupOption[] = snap.docs.map((d) => ({
+          id: d.id,
+          name: (d.data().group_name as string) ?? (d.data().name as string) ?? "Group",
+        }));
+        setGroups(list);
+        if (list.length > 0) {
+          setSelectedGroupId((current) => current || list[0].id);
+        } else {
+          setLoading(false);
+        }
+      } catch (err) {
+        console.error("Error loading groups:", err);
+        setLoading(false);
+      }
+    })();
+  }, [user, isTreasurerOrAdmin]);
 
-  // Fetch all contributions and map userId to user names
-  const fetchContributions = async () => {
+  // Refetch contributions whenever the selected group changes
+  useEffect(() => {
+    if (!selectedGroupId) return;
+    fetchContributions(selectedGroupId);
+  }, [selectedGroupId]);
+
+  const fetchContributions = async (groupId: string) => {
     try {
       setLoading(true);
-      // Get all contributions
-      const querySnapshot = await getDocs(collection(db, "contributions"));
-      const contributionsList: Contribution[] = [];
-      
-      // Get all users to map userId to names
+      const contribSnap = await getDocs(
+        query(collection(db, "contributions"), where("groupId", "==", groupId))
+      );
+
       const usersSnapshot = await getDocs(collection(db, "users"));
       const userMap = new Map();
       usersSnapshot.forEach((docSnap) => {
         const data = docSnap.data();
         userMap.set(docSnap.id, data.name || data.email?.split('@')[0] || "Unknown");
       });
-      
-      for (const docSnap of querySnapshot.docs) {
+
+      const contributionsList: Contribution[] = contribSnap.docs.map((docSnap) => {
         const data = docSnap.data();
-        contributionsList.push({
+        return {
           id: docSnap.id,
           amount: data.amount,
           contributionDate: data.contributionDate,
@@ -72,8 +102,8 @@ export default function ManageContributionsPage() {
           confirmedBy: data.confirmedBy,
           confirmedAt: data.confirmedAt,
           userName: userMap.get(data.userId) || "Unknown",
-        });
-      }
+        };
+      });
       setContributions(contributionsList);
     } catch (err) {
       console.error("Error fetching contributions:", err);
@@ -102,7 +132,7 @@ export default function ManageContributionsPage() {
 
       await updateDoc(contributionRef, updateData);
       setMessage({ type: "success", text: `Contribution marked as ${newStatus}!` });
-      await fetchContributions(); // Refresh the list
+      if (selectedGroupId) await fetchContributions(selectedGroupId);
       setTimeout(() => setMessage(null), 3000);
     } catch (err) {
       console.error("Error updating contribution:", err);
@@ -125,7 +155,7 @@ export default function ManageContributionsPage() {
         updatedAt: new Date().toISOString(),
       });
       setMessage({ type: "success", text: "Confirmed by updated!" });
-      await fetchContributions();
+      if (selectedGroupId) await fetchContributions(selectedGroupId);
       setTimeout(() => setMessage(null), 3000);
     } catch (err) {
       console.error("Error updating confirmed by:", err);
@@ -188,9 +218,33 @@ export default function ManageContributionsPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-gray-900">Manage Contributions</h1>
-        <p className="text-gray-500 mt-1">Confirm or flag member contributions</p>
+      <div className="flex flex-wrap items-end justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Manage Contributions</h1>
+          <p className="text-gray-500 mt-1">
+            {groups.find((g) => g.id === selectedGroupId)?.name
+              ? `Confirm or flag contributions for ${groups.find((g) => g.id === selectedGroupId)?.name}`
+              : "Confirm or flag member contributions"}
+          </p>
+        </div>
+        {groups.length > 1 && (
+          <div>
+            <label className="text-[10px] font-bold uppercase tracking-wider text-gray-400 ml-1">
+              Group
+            </label>
+            <select
+              value={selectedGroupId}
+              onChange={(e) => setSelectedGroupId(e.target.value)}
+              className="mt-1 px-3 py-2 rounded-lg bg-white border border-gray-200 focus:border-emerald-500 outline-none text-sm font-semibold"
+            >
+              {groups.map((g) => (
+                <option key={g.id} value={g.id}>
+                  {g.name}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
       </div>
 
       {message && (

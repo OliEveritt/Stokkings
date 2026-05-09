@@ -3,8 +3,8 @@
 import { useState, useMemo, useCallback } from "react";
 import { useRouter, useParams } from "next/navigation";
 import {
-  Home, Users, Calendar, BarChart3, CreditCard, 
-  UserPlus, CircleDollarSign, TrendingUp, ClipboardList,
+  Home, Users, Calendar, BarChart3, CreditCard,
+  CircleDollarSign, TrendingUp, ClipboardList, UserPlus, Plus,
 } from "lucide-react";
 
 import Header from "@/components/layout/Header";
@@ -16,7 +16,6 @@ import type { User, Notification, NavItem, Role } from "@/types";
 
 const NAV: NavItem[] = [
   { id: "dashboard", label: "Dashboard", icon: Home, roles: ["Member", "Treasurer", "Admin"], path: "/dashboard" },
-  { id: "payments", label: "Payments", icon: CreditCard, roles: ["Member", "Treasurer", "Admin"], path: "/payments" },
   { id: "payouts", label: "Payout Schedule", icon: CircleDollarSign, roles: ["Treasurer", "Admin"], path: "/payouts" },
   { id: "meetings", label: "Meetings", icon: Calendar, roles: ["Member", "Treasurer", "Admin"], path: "/meetings" },
   { id: "analytics", label: "Analytics", icon: BarChart3, roles: ["Treasurer", "Admin"], path: "/analytics" },
@@ -24,7 +23,8 @@ const NAV: NavItem[] = [
   { id: "members", label: "Members", icon: Users, roles: ["Admin"], path: "/members" },
   { id: "contributions", label: "My Contributions", icon: CreditCard, roles: ["Member", "Treasurer", "Admin"], path: "/contributions" },
   { id: "savings-projection", label: "Savings Projection", icon: TrendingUp, roles: ["Member", "Treasurer", "Admin"], path: "/savings-projection" },
-  { id: "invitations", label: "Invitations", icon: UserPlus, roles: ["Admin"], path: "/invitations" },
+  { id: "join-group", label: "Join Group", icon: UserPlus, roles: ["Member", "Treasurer", "Admin"], path: "/join-group" },
+  { id: "create-group", label: "Create Group", icon: Plus, roles: ["Admin"], path: "/create-group" },
 ];
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
@@ -54,13 +54,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   const handleNav = useCallback((id: string) => {
     const navItem = NAV.find(item => item.id === id);
-    if (navItem && currentGroupId) {
-      setActivePage(id);
-      setMobileOpen(false);
-      // Maintain group context during navigation
-      router.push(`${navItem.path}/${currentGroupId}`);
-    }
-  }, [router, currentGroupId]);
+    if (!navItem) return;
+    setActivePage(id);
+    setMobileOpen(false);
+    router.push(navItem.path);
+  }, [router]);
 
   if (authLoading) return <div className="h-screen flex items-center justify-center">Loading...</div>;
   if (!firebaseUser) { router.push("/login"); return null; }

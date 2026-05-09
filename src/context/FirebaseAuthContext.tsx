@@ -1,12 +1,27 @@
 "use client";
 
 import { createContext, useContext, useEffect, useState } from "react";
-import { createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged, User } from "firebase/auth";
+import {
+  createUserWithEmailAndPassword,
+  signInWithEmailAndPassword,
+  signOut,
+  onAuthStateChanged,
+  type User as FirebaseUser,
+} from "firebase/auth";
 import { doc, setDoc, getDoc } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase";
+import type { Role } from "@/types";
+
+export interface AppUser {
+  uid: string;
+  email: string | null;
+  name: string;
+  role: Role;
+  groupId?: string;
+}
 
 interface AuthContextType {
-  user: User | null;
+  user: AppUser | null;
   loading: boolean;
   signup: (email: string, password: string, fullName: string, phone?: string) => Promise<void>;
   login: (email: string, password: string) => Promise<void>;
@@ -15,13 +30,40 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+async function loadAppUser(fbUser: FirebaseUser): Promise<AppUser> {
+  const snap = await getDoc(doc(db, "users", fbUser.uid));
+  const data = snap.exists() ? snap.data() : {};
+  return {
+    uid: fbUser.uid,
+    email: fbUser.email,
+    name: (data.name as string) || (data.fullName as string) || fbUser.displayName || "User",
+    role: (data.role as Role) || "Member",
+    groupId: data.groupId as string | undefined,
+  };
+}
+
 export function FirebaseAuthProvider({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] = useState<AppUser | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (u) => {
-      setUser(u);
+    const unsubscribe = onAuthStateChanged(auth, async (fbUser) => {
+      if (fbUser) {
+        try {
+          const appUser = await loadAppUser(fbUser);
+          setUser(appUser);
+        } catch (err) {
+          console.error("Failed to load user profile:", err);
+          setUser({
+            uid: fbUser.uid,
+            email: fbUser.email,
+            name: fbUser.displayName || "User",
+            role: "Member",
+          });
+        }
+      } else {
+        setUser(null);
+      }
       setLoading(false);
     });
     return unsubscribe;
@@ -32,14 +74,16 @@ export function FirebaseAuthProvider({ children }: { children: React.ReactNode }
       const result = await createUserWithEmailAndPassword(auth, email, password);
       await setDoc(doc(db, "users", result.user.uid), {
         email,
-        fullName,
+        name: fullName,
         phone: phone || null,
         role: "Member",
         createdAt: new Date(),
       });
-      // Optional meta update
-    } catch (error: any) {
-      if (error.code === "auth/email-already-in-use") throw new Error("This email is already registered. Please sign in.");
+    } catch (error: unknown) {
+      const code = (error as { code?: string }).code;
+      if (code === "auth/email-already-in-use") {
+        throw new Error("This email is already registered. Please sign in.");
+      }
       throw error;
     }
   };

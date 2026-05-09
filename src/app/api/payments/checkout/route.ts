@@ -1,12 +1,14 @@
 ﻿import { NextRequest, NextResponse } from "next/server";
+import Stripe from "stripe";
 import { adminAuth } from "@/lib/firebase-admin";
 
-let stripe: any = null;
+let stripe: Stripe | null = null;
 
-function getStripe() {
+function getStripe(): Stripe {
   if (!stripe) {
-    const Stripe = require("stripe");
-    stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
+    const key = process.env.STRIPE_SECRET_KEY;
+    if (!key) throw new Error("STRIPE_SECRET_KEY is not set in .env");
+    stripe = new Stripe(key);
   }
   return stripe;
 }
@@ -23,10 +25,23 @@ export async function POST(req: NextRequest) {
 
     const body = await req.json();
     const { contributionId, amount } = body;
+    if (!contributionId || typeof amount !== "number" || amount <= 0) {
+      return NextResponse.json(
+        { error: "contributionId and a positive amount are required" },
+        { status: 400 }
+      );
+    }
 
-    const stripe = getStripe();
+    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL;
+    if (!baseUrl) {
+      return NextResponse.json(
+        { error: "NEXT_PUBLIC_BASE_URL is not set in .env" },
+        { status: 500 }
+      );
+    }
 
-    const session = await stripe.checkout.sessions.create({
+    const stripeClient = getStripe();
+    const session = await stripeClient.checkout.sessions.create({
       payment_method_types: ["card"],
       line_items: [{
         price_data: {
@@ -40,14 +55,22 @@ export async function POST(req: NextRequest) {
         quantity: 1,
       }],
       mode: "payment",
-      success_url: `${process.env.NEXT_PUBLIC_BASE_URL}/payment/success?contributionId=${contributionId}`,
-      cancel_url: `${process.env.NEXT_PUBLIC_BASE_URL}/payment/cancel?contributionId=${contributionId}`,
+      success_url: `${baseUrl}/payment/success?contributionId=${contributionId}`,
+      cancel_url: `${baseUrl}/payment/cancel?contributionId=${contributionId}`,
       metadata: { contributionId },
     });
 
     return NextResponse.json({ checkoutUrl: session.url });
   } catch (error) {
-    console.error("Error creating Stripe checkout:", error);
-    return NextResponse.json({ error: "Failed to create checkout session" }, { status: 500 });
+    const err = error as { message?: string; type?: string; code?: string };
+    console.error("Error creating Stripe checkout:", err);
+    return NextResponse.json(
+      {
+        error: err.message ?? "Failed to create checkout session",
+        type: err.type,
+        code: err.code,
+      },
+      { status: 500 }
+    );
   }
 }

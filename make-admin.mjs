@@ -1,33 +1,30 @@
 import admin from 'firebase-admin';
-import { readFileSync } from 'fs';
-import { fileURLToPath } from 'url';
-import { dirname, join } from 'path';
+import 'dotenv/config';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
+const projectId = process.env.FIREBASE_PROJECT_ID;
+const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
+const privateKey = process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n');
 
-// 1. Read the service account JSON file as a string
-const keyPath = join(__dirname, 'stokvel-platform-e4318-firebase-adminsdk-fbsvc-f3c33ccb41.json');
-const rawKey = readFileSync(keyPath, 'utf8');
+if (!projectId || !clientEmail || !privateKey) {
+  console.error('Missing Firebase Admin credentials. Set FIREBASE_PROJECT_ID, FIREBASE_CLIENT_EMAIL, FIREBASE_PRIVATE_KEY in .env');
+  process.exit(1);
+}
 
-// 2. Replace escaped newlines with real newlines (fixes private_key formatting)
-const fixedKey = rawKey.replace(/\\n/g, '\n');
-
-// 3. Parse into JSON object
-const serviceAccount = JSON.parse(fixedKey);
-
-// 4. Initialize Firebase Admin SDK
 admin.initializeApp({
-  credential: admin.credential.cert(serviceAccount),
+  credential: admin.credential.cert({ projectId, clientEmail, privateKey }),
 });
 
 const db = admin.firestore();
 
-async function makeAdminOfAllGroups() {
-  const uid = 'sY3Sb9oTiuhj3r28hc5bglAT13u1';   // uno's UID
-  const email = 'uno@gmail.com';
+const TARGET_UID = process.env.MAKE_ADMIN_UID;
+const TARGET_EMAIL = process.env.MAKE_ADMIN_EMAIL;
 
-  // Fetch all groups
+if (!TARGET_UID || !TARGET_EMAIL) {
+  console.error('Set MAKE_ADMIN_UID and MAKE_ADMIN_EMAIL env vars before running.');
+  process.exit(1);
+}
+
+async function makeAdminOfAllGroups() {
   const groupsSnapshot = await db.collection('groups').get();
 
   if (groupsSnapshot.empty) {
@@ -37,12 +34,12 @@ async function makeAdminOfAllGroups() {
 
   for (const groupDoc of groupsSnapshot.docs) {
     const groupId = groupDoc.id;
-    const memberRef = db.doc(`groups/${groupId}/group_members/${uid}`);
+    const memberRef = db.doc(`groups/${groupId}/group_members/${TARGET_UID}`);
 
     await memberRef.set(
       {
-        userId: uid,
-        email: email,
+        userId: TARGET_UID,
+        email: TARGET_EMAIL,
         role: 'Admin',
         status: 'active',
         joinedAt: admin.firestore.FieldValue.serverTimestamp(),
@@ -50,15 +47,15 @@ async function makeAdminOfAllGroups() {
       { merge: true }
     );
 
-    console.log(`✅ Admin added for group: ${groupId} (${groupDoc.data().group_name || 'Unnamed'})`);
+    console.log(`Admin added for group: ${groupId} (${groupDoc.data().group_name || 'Unnamed'})`);
   }
 
-  console.log('🎉 Done! uno@gmail.com is now admin of all groups.');
+  console.log(`Done. ${TARGET_EMAIL} is now admin of all groups.`);
 }
 
 makeAdminOfAllGroups()
   .then(() => process.exit(0))
   .catch((err) => {
-    console.error('❌ Error:', err);
+    console.error('Error:', err);
     process.exit(1);
   });

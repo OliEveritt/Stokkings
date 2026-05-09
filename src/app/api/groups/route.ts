@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { adminAuth } from "@/lib/firebase-admin";
 import { db } from "@/lib/firebase";
-import { collection, addDoc, getDoc, doc, getDocs } from "firebase/firestore";
+import { collection, addDoc, getDoc, doc, getDocs, setDoc, serverTimestamp } from "firebase/firestore";
 
 export async function POST(req: NextRequest) {
   try {
@@ -49,11 +49,14 @@ export async function POST(req: NextRequest) {
 
     const docRef = await addDoc(collection(db, "groups"), groupData);
 
-    await addDoc(collection(db, "group_members"), {
+    // Register the creator as Admin in the per-group subcollection that the
+    // group page and invite system both read from.
+    await setDoc(doc(db, "groups", docRef.id, "group_members", userId), {
       userId: userId,
-      groupId: docRef.id,
-      role: 'Admin',
-      joinedAt: new Date().toISOString(),
+      email: userData.email ?? null,
+      role: "Admin",
+      status: "active",
+      joinedAt: serverTimestamp(),
     });
 
     return NextResponse.json({ 

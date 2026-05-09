@@ -1,61 +1,107 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useFirebaseAuth } from "@/context/FirebaseAuthContext";
+import { collection, doc, getDoc, getDocs, query, where } from "firebase/firestore";
 import { db } from "@/lib/firebase";
-import { collection, query, where, getDocs, orderBy } from "firebase/firestore";
-import PayoutScheduleTable from "@/components/dashboard/PayoutScheduleTable";
+import { useFirebaseAuth } from "@/context/FirebaseAuthContext";
+import PayoutSchedule from "@/components/payouts/PayoutSchedule";
+
+interface GroupOption {
+  id: string;
+  name: string;
+}
 
 export default function PayoutSchedulePage() {
-  const { user } = useFirebaseAuth();
-  const [schedule, setSchedule] = useState<any[]>([]);
+  const { user, loading: authLoading } = useFirebaseAuth();
+  const [groups, setGroups] = useState<GroupOption[]>([]);
+  const [selectedGroupId, setSelectedGroupId] = useState<string>("");
+  const [groupRole, setGroupRole] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    async function fetchPayouts() {
-      if (!user) return;
+    if (authLoading || !user) return;
+    let cancelled = false;
+    (async () => {
       try {
-        const groupQuery = query(
-          collection(db, "groups"), 
-          where("members", "array-contains", user.uid)
+        const snap = await getDocs(
+          query(collection(db, "groups"), where("members", "array-contains", user.uid))
         );
-        const groupSnap = await getDocs(groupQuery);
-        
-        if (!groupSnap.empty) {
-          const groupId = groupSnap.docs[0].id;
-          const payoutQuery = query(
-            collection(db, "payout_schedules"),
-            where("groupId", "==", groupId),
-            orderBy("position", "asc")
-          );
-          
-          const payoutSnap = await getDocs(payoutQuery);
-          const list = payoutSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-          setSchedule(list);
+        if (cancelled) return;
+        const list: GroupOption[] = snap.docs.map((d) => ({
+          id: d.id,
+          name: (d.data().group_name as string) ?? (d.data().name as string) ?? "Group",
+        }));
+        setGroups(list);
+        if (list.length > 0) {
+          setSelectedGroupId((current) => current || list[0].id);
         }
-      } catch (error) {
-        console.error("Error fetching payout schedule:", error);
       } finally {
-        setLoading(false);
+        if (!cancelled) setLoading(false);
       }
+    })();
+    return () => { cancelled = true; };
+  }, [authLoading, user]);
+
+  useEffect(() => {
+    if (!user || !selectedGroupId) {
+      setGroupRole(null);
+      return;
     }
-    fetchPayouts();
-  }, [user]);
+    getDoc(doc(db, "groups", selectedGroupId, "group_members", user.uid)).then((snap) => {
+      setGroupRole(snap.exists() ? (snap.data().role as string) : null);
+    });
+  }, [user, selectedGroupId]);
 
-  if (loading) return <div className="p-8 animate-pulse text-gray-500">Calculating schedule...</div>;
+  if (loading || authLoading) {
+    return <div className="p-8 animate-pulse text-gray-500">Loading payout schedule...</div>;
+  }
 
-  const isAuthorized = user?.role === "Admin" || user?.role === "Treasurer";
+  if (groups.length === 0) {
+    return (
+      <div className="p-8 max-w-2xl mx-auto text-center">
+        <h1 className="text-2xl font-bold text-gray-900 mb-2">No groups</h1>
+        <p className="text-gray-600">Join or create a group to see a payout schedule.</p>
+      </div>
+    );
+  }
+
+  const role =
+    groupRole === "Admin" ||
+    user?.role === "Admin" ||
+    user?.role === "Treasurer"
+      ? "Treasurer"
+      : "Member";
 
   return (
     <div className="space-y-6 p-6">
-      <h1 className="text-2xl font-bold text-gray-900 tracking-tight">Payout Schedule</h1>
-      {schedule.length === 0 ? (
-        <div className="p-12 text-center border-2 border-dashed rounded-3xl text-gray-400">
-          No payout rotation set yet.
+      <div className="flex flex-wrap items-end justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900 tracking-tight">Payout Schedule</h1>
+          <p className="text-sm text-gray-500 mt-1">
+            {groups.find((g) => g.id === selectedGroupId)?.name ?? "Select a group"}
+          </p>
         </div>
-      ) : (
-        <PayoutScheduleTable schedule={schedule} isTreasurer={isAuthorized} />
-      )}
+        {groups.length > 1 && (
+          <div>
+            <label className="text-[10px] font-bold uppercase tracking-wider text-gray-400 ml-1">
+              Group
+            </label>
+            <select
+              value={selectedGroupId}
+              onChange={(e) => setSelectedGroupId(e.target.value)}
+              className="mt-1 px-3 py-2 rounded-lg bg-white border border-gray-200 focus:border-emerald-500 outline-none text-sm font-semibold"
+            >
+              {groups.map((g) => (
+                <option key={g.id} value={g.id}>
+                  {g.name}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
+      </div>
+
+      {selectedGroupId && <PayoutSchedule groupId={selectedGroupId} userRole={role} />}
     </div>
   );
 }

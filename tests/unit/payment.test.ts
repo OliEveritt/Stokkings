@@ -36,9 +36,9 @@ describe('Payment Flow - UAT Tests', () => {
 
   describe('UAT 4: Already Paid Contribution', () => {
     it('should not show "Pay Now" button when status is "confirmed"', () => {
-      const status = 'confirmed';
+      const status: string = 'confirmed';
       const showPayNowButton = status === 'pending';
-      
+
       expect(showPayNowButton).toBe(false);
     });
   });

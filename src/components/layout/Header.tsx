@@ -15,11 +15,11 @@ interface HeaderProps {
   user: User & { group_id?: number };
   groupName: string;
   activeLabel: string;
-  notifications: Notification[];
-  roleOverride: Role;
-  mandates: Mandate[];
-  onMandateSwitch: (groupId: number) => void;
-  onRoleChange: (role: Role) => void;
+  notifications?: Notification[];
+  roleOverride?: Role;
+  mandates?: Mandate[];
+  onMandateSwitch?: (groupId: number) => void;
+  onRoleChange?: (role: Role) => void;
   onOpenMobileSidebar: () => void;
 }
 

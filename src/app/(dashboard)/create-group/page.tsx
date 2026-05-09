@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useFirebaseAuth } from "@/context/FirebaseAuthContext";
 import { useRouter } from "next/navigation";
-import { collection, addDoc, serverTimestamp } from "firebase/firestore";
+import { collection, addDoc, doc, setDoc, serverTimestamp } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 
 interface FormData {
@@ -104,8 +104,20 @@ export default function CreateGroupPage() {
 
       const docRef = await addDoc(collection(db, "groups"), groupData);
       console.log("Group created with ID:", docRef.id);
-      
-      router.push("/dashboard?success=group_created");
+
+      // Register the creator as Admin in the per-group subcollection that the
+      // group page and invite system both read from.
+      if (user?.uid) {
+        await setDoc(doc(db, "groups", docRef.id, "group_members", user.uid), {
+          userId: user.uid,
+          email: user.email ?? null,
+          role: "Admin",
+          status: "active",
+          joinedAt: serverTimestamp(),
+        });
+      }
+
+      router.push(`/groups/${docRef.id}`);
     } catch (err) {
       console.error("Error creating group:", err);
       setError("Failed to create group. Please try again.");

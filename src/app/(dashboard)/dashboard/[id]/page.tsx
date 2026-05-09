@@ -35,7 +35,6 @@ export default function GroupDashboardPage() {
       {group ? (
         <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-200">
            <h2 className="text-xl font-bold">{group.group_name}</h2>
-           {/* PayoutScheduleTable and PendingInvites go here, passing 'id' */}
         </div>
       ) : (
         <p>Loading group data...</p>

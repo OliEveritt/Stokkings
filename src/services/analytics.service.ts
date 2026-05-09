@@ -1,2 +1,0 @@
-// Service — pending implementation
-export {};

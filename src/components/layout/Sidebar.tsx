@@ -1,7 +1,6 @@
 "use client";
 
 import { X, Shield } from "lucide-react";
-import Link from "next/link";
 import type { NavItem, Rates } from "@/types";
 
 interface SidebarProps {
@@ -19,13 +18,12 @@ interface SidebarContentProps extends SidebarProps {
   showClose?: boolean;
 }
 
-function SidebarContent({ 
-  items, 
-  active, 
-  onNav, 
-  currentGroupId, 
-  onClose, 
-  showClose 
+function SidebarContent({
+  items,
+  active,
+  onNav,
+  onClose,
+  showClose
 }: SidebarContentProps) {
   return (
     <>
@@ -45,24 +43,6 @@ function SidebarContent({
         {items.map((item: NavItem) => {
           const Icon = item.icon;
           const isActive = item.id === active;
-
-          // US-2.1: Navigation for Invitation Management
-          if (item.id === "invitations") {
-            return (
-              <Link
-                key={item.id}
-                href={`/groups/${currentGroupId}/invite`}
-                className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-                  isActive 
-                    ? "bg-emerald-50 text-emerald-700 shadow-sm" 
-                    : "text-gray-600 hover:bg-gray-50"
-                }`}
-              >
-                <Icon size={18} />
-                <span className="flex-1">{item.label}</span>
-              </Link>
-            );
-          }
 
           // Default internal state navigation for dashboard sections
           return (

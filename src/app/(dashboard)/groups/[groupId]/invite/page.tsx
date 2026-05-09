@@ -1,214 +1,154 @@
 "use client";
 
-import { useState, useEffect, use } from "react";
-import { db, auth } from "@/lib/firebase";
-import {
-  collection,
-  addDoc,
-  query,
-  where,
-  getDocs,
-  onSnapshot,
-  serverTimestamp,
-} from "firebase/firestore";
-import { UserPlus, Clock, CheckCircle2, Copy, Link2, ChevronDown } from "lucide-react";
+import { useEffect, useState } from "react";
+import { useParams, useRouter } from "next/navigation";
+import { doc, getDoc } from "firebase/firestore";
+import { auth, db } from "@/lib/firebase";
+import { useFirebaseAuth } from "@/context/FirebaseAuthContext";
+import PendingInvites from "./PendingInvites";
 
-export default function OnboardingCenter({ params }: { params: Promise<{ groupId: string }> }) {
-  const resolvedParams = use(params);
-  const initialGroupId = resolvedParams.groupId;
+export default function GroupInvitePage() {
+  const { groupId } = useParams<{ groupId: string }>();
+  const router = useRouter();
+  const { user, loading: authLoading } = useFirebaseAuth();
 
-  const [email, setEmail] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [invites, setInvites] = useState<any[]>([]);
-  const [availableGroups, setAvailableGroups] = useState<any[]>([]);
-  const [selectedGroupId, setSelectedGroupId] = useState(initialGroupId);
+  const [groupName, setGroupName] = useState("");
+  const [isAdmin, setIsAdmin] = useState<boolean | null>(null);
+  const [loading, setLoading] = useState(true);
 
-  // Fetch groups the admin belongs to
+  const [generating, setGenerating] = useState(false);
+  const [generatedCode, setGeneratedCode] = useState<string | null>(null);
+  const [generatedExpiresAt, setGeneratedExpiresAt] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
+
   useEffect(() => {
-    const fetchGroups = async () => {
-      if (!auth.currentUser) return;
-      const q = query(collection(db, "groups"), where("members", "array-contains", auth.currentUser.uid));
-      const snap = await getDocs(q);
-      const groupsData = snap.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
-      setAvailableGroups(groupsData);
-      if (initialGroupId === "undefined" && groupsData.length > 0) {
-        setSelectedGroupId(groupsData[0].id);
-      }
-    };
-    fetchGroups();
-  }, [initialGroupId]);
-
-  // Real‑time audit trail (pending & accepted invites)
-  useEffect(() => {
-    if (!selectedGroupId || selectedGroupId === "undefined") return;
-    const q = query(collection(db, "invitations"), where("groupId", "==", selectedGroupId));
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const docs = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
-      setInvites(docs.sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0)));
-    });
-    return () => unsubscribe();
-  }, [selectedGroupId]);
-
-  const handleSendInvite = async () => {
-    if (!email || selectedGroupId === "undefined") {
-      alert("Please select a group and enter an email.");
+    if (authLoading) return;
+    if (!user) {
+      router.push("/login");
       return;
     }
+    if (!groupId) return;
 
-    setLoading(true);
+    (async () => {
+      try {
+        const groupSnap = await getDoc(doc(db, "groups", groupId));
+        if (groupSnap.exists()) {
+          const data = groupSnap.data();
+          setGroupName(data.group_name || data.name || "Group");
+        }
+        const memberSnap = await getDoc(doc(db, "groups", groupId, "group_members", user.uid));
+        setIsAdmin(memberSnap.exists() && memberSnap.data()?.role === "Admin");
+      } finally {
+        setLoading(false);
+      }
+    })();
+  }, [authLoading, user, groupId, router]);
+
+  const handleGenerate = async () => {
+    setError(null);
+    setGeneratedCode(null);
+    setGeneratedExpiresAt(null);
+    setCopied(false);
+    setGenerating(true);
     try {
-      const cleanEmail = email.toLowerCase().trim();
-      const invitationsRef = collection(db, "invitations");
-
-      // Duplicate invitation check (UAT‑4 already handled by accept page)
-      const checkInviteQ = query(
-        invitationsRef,
-        where("groupId", "==", selectedGroupId),
-        where("email", "==", cleanEmail)
-      );
-      const inviteSnap = await getDocs(checkInviteQ);
-      if (!inviteSnap.empty) {
-        alert("This user has already been invited to this group.");
-        setLoading(false);
-        return;
-      }
-
-      // UAT‑3: Check if the user is already a member of the group (group_members subcollection)
-      const memberQ = query(
-        collection(db, "groups", selectedGroupId, "group_members"),
-        where("email", "==", cleanEmail)
-      );
-      const memberSnap = await getDocs(memberQ);
-      if (!memberSnap.empty) {
-        alert("This user is already a member of the group.");
-        setLoading(false);
-        return;
-      }
-
-      const newToken = crypto.randomUUID();
-      await addDoc(invitationsRef, {
-        email: cleanEmail,
-        groupId: selectedGroupId,
-        token: newToken,
-        status: "pending",
-        createdAt: serverTimestamp(),
-        invitedBy: auth.currentUser?.uid,
+      const token = await auth.currentUser?.getIdToken();
+      const res = await fetch("/api/invites/generate", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ groupId }),
       });
-      setEmail("");
-    } catch (err) {
-      console.error(err);
+      const data = await res.json();
+      if (!res.ok) {
+        setError(data.error || "Failed to generate code");
+        return;
+      }
+      setGeneratedCode(data.code);
+      setGeneratedExpiresAt(data.expiresAt);
+    } catch (e) {
+      console.error(e);
+      setError("Network error. Please try again.");
     } finally {
-      setLoading(false);
+      setGenerating(false);
     }
   };
 
-  const copyToClipboard = (token: string) => {
-    const fullUrl = `${window.location.origin}/invite/${token}`;
-    navigator.clipboard.writeText(fullUrl);
-    alert("Invitation link copied!");
+  const handleCopy = async () => {
+    if (!generatedCode) return;
+    try {
+      await navigator.clipboard.writeText(generatedCode);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      setError("Could not copy to clipboard");
+    }
   };
 
-  return (
-    <div className="p-8 max-w-6xl animate-in fade-in duration-500">
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        {/* LEFT: Invite Form */}
-        <div className="bg-white rounded-[2.5rem] shadow-2xl p-10 border border-gray-100 h-fit">
-          <div className="flex items-center gap-5 mb-10">
-            <div className="w-14 h-14 bg-emerald-50 text-emerald-600 rounded-2xl flex items-center justify-center">
-              <UserPlus size={28} />
-            </div>
-            <h1 className="text-2xl font-black text-gray-900">Invite Member</h1>
-          </div>
-          <div className="space-y-6">
-            <div className="space-y-2">
-              <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest px-1">
-                Target Stokvel Group
-              </label>
-              <div className="relative">
-                <select
-                  value={selectedGroupId}
-                  onChange={(e) => setSelectedGroupId(e.target.value)}
-                  className="w-full bg-gray-50 border-2 border-transparent focus:border-emerald-500 rounded-2xl p-4 font-bold text-gray-700 outline-none appearance-none cursor-pointer"
-                >
-                  <option value="undefined">Select a group...</option>
-                  {availableGroups.map((g) => (
-                    <option key={g.id} value={g.id}>
-                      {g.group_name || "Stokvel Group"}
-                    </option>
-                  ))}
-                </select>
-                <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" size={20} />
-              </div>
-            </div>
-            <div className="space-y-2">
-              <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest px-1">
-                Member Email
-              </label>
-              <input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="new.member@wits.ac.za"
-                className="w-full bg-gray-50 border-2 border-transparent focus:border-emerald-500 rounded-2xl p-4 font-semibold text-gray-700 outline-none transition-all"
-              />
-            </div>
-            <button
-              onClick={handleSendInvite}
-              disabled={loading || selectedGroupId === "undefined"}
-              className="w-full bg-emerald-600 text-white py-4 rounded-2xl font-black text-sm hover:bg-emerald-700 transition-all shadow-lg disabled:opacity-50"
-            >
-              {loading ? "PROCESSING..." : "SEND INVITATION"}
-            </button>
-          </div>
-        </div>
+  if (loading || authLoading) {
+    return <div className="p-8 text-center text-gray-500">Loading...</div>;
+  }
 
-        {/* RIGHT: Live Audit Trail */}
-        <div className="bg-white rounded-[2.5rem] shadow-2xl p-10 border border-gray-100">
-          <div className="flex items-center justify-between mb-8">
-            <div className="flex items-center gap-4">
-              <div className="p-3 bg-gray-50 text-gray-400 rounded-xl">
-                <Link2 size={20} />
-              </div>
-              <h2 className="text-lg font-black text-gray-800">Live Audit Trail</h2>
+  if (isAdmin === false) {
+    return (
+      <div className="p-8 max-w-2xl mx-auto text-center">
+        <div className="text-5xl mb-4">⛔</div>
+        <h1 className="text-2xl font-bold text-gray-900 mb-2">Access Denied</h1>
+        <p className="text-gray-600">Only group admins can generate invite codes.</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="p-6 max-w-3xl mx-auto">
+      <div className="mb-8">
+        <h1 className="text-3xl font-black text-gray-900">Invite to {groupName}</h1>
+        <p className="text-sm text-gray-500 mt-1">
+          Generate a single-use invite code, then send it to the new member however you like (WhatsApp, SMS, in person). They enter it on the Join Group page to join.
+        </p>
+      </div>
+
+      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 mb-8">
+        <button
+          onClick={handleGenerate}
+          disabled={generating}
+          className="bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white font-bold py-3 px-6 rounded-xl transition-all"
+        >
+          {generating ? "Generating..." : "Generate Invite Code"}
+        </button>
+
+        {error && (
+          <div className="mt-4 p-3 bg-red-50 text-red-700 rounded-xl text-sm">{error}</div>
+        )}
+
+        {generatedCode && (
+          <div className="mt-6 p-5 bg-emerald-50 border border-emerald-200 rounded-2xl">
+            <div className="text-xs font-bold uppercase text-emerald-700 tracking-wide mb-2">
+              New invite code
             </div>
-            <span className="text-[10px] font-black text-gray-400 bg-gray-100 px-3 py-1 rounded-full uppercase">
-              {invites.length} Records
-            </span>
-          </div>
-          <div className="space-y-3 max-h-[400px] overflow-y-auto pr-2">
-            {invites.length === 0 ? (
-              <p className="text-center py-10 text-gray-400 text-xs font-bold uppercase">
-                No invitations found for this group.
-              </p>
-            ) : (
-              invites.map((invite) => (
-                <div
-                  key={invite.id}
-                  className="flex items-center justify-between p-4 bg-gray-50/50 rounded-2xl border border-gray-100 group hover:border-emerald-200 transition-all"
-                >
-                  <div className="max-w-[180px]">
-                    <p className="text-xs font-bold text-gray-700 truncate">{invite.email}</p>
-                    <button
-                      onClick={() => copyToClipboard(invite.token)}
-                      className="text-[10px] font-black text-emerald-600 flex items-center gap-1 mt-1 opacity-60 group-hover:opacity-100 transition-opacity"
-                    >
-                      <Copy size={10} /> COPY LINK
-                    </button>
-                  </div>
-                  <div
-                    className={`flex items-center gap-2 px-3 py-1.5 rounded-full ${
-                      invite.status === "accepted" ? "bg-emerald-100 text-emerald-700" : "bg-amber-100 text-amber-700"
-                    }`}
-                  >
-                    {invite.status === "accepted" ? <CheckCircle2 size={12} /> : <Clock size={12} />}
-                    <span className="text-[10px] font-black uppercase">{invite.status}</span>
-                  </div>
-                </div>
-              ))
+            <div className="flex items-center gap-3">
+              <code className="text-2xl font-mono font-black text-gray-900 tracking-widest select-all">
+                {generatedCode}
+              </code>
+              <button
+                onClick={handleCopy}
+                className="ml-auto bg-white border border-emerald-300 text-emerald-700 hover:bg-emerald-100 font-semibold px-4 py-2 rounded-lg text-sm"
+              >
+                {copied ? "Copied!" : "Copy"}
+              </button>
+            </div>
+            {generatedExpiresAt && (
+              <div className="text-xs text-gray-600 mt-3">
+                Expires {new Date(generatedExpiresAt).toLocaleString()}
+              </div>
             )}
           </div>
-        </div>
+        )}
       </div>
+
+      <PendingInvites groupId={groupId!} />
     </div>
   );
 }

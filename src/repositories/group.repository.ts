@@ -1,2 +1,0 @@
-// Repository — pending implementation
-export {};

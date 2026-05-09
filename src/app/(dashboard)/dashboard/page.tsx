@@ -33,7 +33,7 @@ export default function DashboardLanding() {
           </div>
         ) : (
           groups.map(group => (
-            <Link key={group.id} href={`/dashboard/${group.id}`}>
+            <Link key={group.id} href={`/groups/${group.id}`}>
               <div className="p-6 bg-white border border-gray-200 rounded-2xl hover:border-emerald-500 hover:shadow-md transition-all cursor-pointer">
                 <h2 className="font-bold text-lg text-emerald-700">{group.group_name || "Unnamed Group"}</h2>
                 <p className="text-xs text-gray-400 font-mono mt-1">ID: {group.id}</p>

@@ -4,6 +4,7 @@ import { Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { auth } from "@/lib/firebase";
 
 function PaymentSuccessContent() {
   const searchParams = useSearchParams();
@@ -21,12 +22,23 @@ function PaymentSuccessContent() {
       }
 
       try {
-        const response = await fetch(`/api/payments/verify?contributionId=${contributionId}`);
+        const fbUser = auth.currentUser;
+        if (!fbUser) {
+          // Not signed in — redirect to login carrying the verify intent.
+          router.push(`/login?redirect=/payment/success?contributionId=${contributionId}`);
+          return;
+        }
+        const token = await fbUser.getIdToken();
+        const response = await fetch(
+          `/api/payments/verify?contributionId=${contributionId}`,
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
         const data = await response.json();
 
-        if (data.success) {
+        if (response.ok && data.success) {
           setVerified(true);
         } else {
+          console.error("Verification response:", data);
           setError(true);
         }
       } catch (err) {
