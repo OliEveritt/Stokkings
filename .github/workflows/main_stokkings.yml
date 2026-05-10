@@ -29,12 +29,6 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Debug — confirm what API key the build will see
-        run: |
-          KEY="${{ secrets.NEXT_PUBLIC_FIREBASE_API_KEY }}"
-          echo "First 6 chars: ${KEY:0:6}"
-          echo "Length: ${#KEY}"
-
       - name: Build
         run: npm run build
         env:
