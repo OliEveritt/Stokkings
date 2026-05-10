@@ -16,7 +16,8 @@ export function combineDateTime(date: string, time: string): Date {
 
 export function validateMeetingInput(
   input: MeetingInput,
-  now: Date = new Date()
+  now: Date = new Date(),
+  isRecordingMinutes: boolean = false // Added flag for TDD pass
 ): ValidationResult {
   const errors: Record<string, string> = {};
 
@@ -39,7 +40,7 @@ export function validateMeetingInput(
     const scheduled = combineDateTime(input.date, input.time);
     if (Number.isNaN(scheduled.getTime())) {
       errors.date = "Invalid date/time";
-    } else if (scheduled.getTime() <= now.getTime()) {
+    } else if (!isRecordingMinutes && scheduled.getTime() <= now.getTime()) {
       errors.date = "Meeting must be scheduled for a future date and time";
     }
   }

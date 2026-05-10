@@ -57,4 +57,23 @@ describe("validateMeetingInput", () => {
     expect(result.ok).toBe(false);
     expect(result.errors.agenda).toMatch(/3 characters/i);
   });
+
+  
+
+  it("allows a past date when specifically recording minutes (TDD)", () => {
+    const result = validateMeetingInput(
+      { 
+        groupId: "g1", 
+        date: "2026-05-08", // Yesterday
+        time: "10:00", 
+        agenda: "Past meeting",
+        minutes: "We discussed the budget." 
+      },
+      NOW,
+      true // The 'isRecordingMinutes' flag
+    );
+    
+    expect(result.ok).toBe(true);
+  });
+
 });
