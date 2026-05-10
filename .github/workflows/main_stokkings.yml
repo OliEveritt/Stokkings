@@ -8,7 +8,7 @@ name: Build and deploy Node.js app to Azure Web App - stokkings
 on:
   push:
     branches:
-      - fix/restore-and-rebuild-invites
+      - main
   workflow_dispatch:
 
 jobs:
