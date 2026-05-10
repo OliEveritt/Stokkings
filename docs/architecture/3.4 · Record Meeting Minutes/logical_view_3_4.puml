@@ -1,0 +1,21 @@
+@startuml
+class MeetingValidator <<Static>> {
+    +validateMeetingInput(input, now, isRecordingMinutes): ValidationResult
+}
+
+interface MeetingInput {
+    +groupId: string
+    +date: string
+    +agenda: string
+    +minutes: string
+}
+
+class MinutesForm <<Component>> {
+    -isAuthorized: boolean
+    -minutes: string
+    +handleSave()
+}
+
+MinutesForm ..> MeetingValidator : invokes
+MeetingValidator ..> MeetingInput : processes
+@endum

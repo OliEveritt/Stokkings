@@ -1,0 +1,14 @@
+@startuml
+actor Treasurer
+participant "MinutesForm" as UI
+participant "MeetingValidator" as Val
+database "Firestore" as DB
+
+Treasurer -> UI: Click "Save Minutes"
+UI -> Val: validate(data, now, true)
+note right: Mid-sprint change: flag allows past dates
+Val --> UI: Validation Result (ok)
+UI -> DB: updateDoc(meetingId, { minutes })
+DB --> UI: Success
+UI -> Treasurer: Success Notification
+@endum

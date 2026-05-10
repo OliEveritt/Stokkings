@@ -1,0 +1,16 @@
+@startuml
+package "src/app/(dashboard)/meetings/[id]" {
+    [page.tsx] as Page
+}
+
+package "src/components/forms" {
+    [MinutesForm.tsx] as Form
+}
+
+package "src/validators" {
+    [meeting.validator.ts] as Logic
+}
+
+Page *-- Form
+Form --> Logic
+@endum
