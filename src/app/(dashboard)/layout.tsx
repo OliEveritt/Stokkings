@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useMemo, useCallback } from "react";
-import { useRouter, useParams } from "next/navigation";
+import { useRouter, useParams, usePathname } from "next/navigation";
 import {
   Home, Users, Calendar, BarChart3, CreditCard,
   CircleDollarSign, TrendingUp, ClipboardList, UserPlus, Plus,
@@ -19,6 +19,7 @@ const NAV: NavItem[] = [
   { id: "payouts", label: "Payout Schedule", icon: CircleDollarSign, roles: ["Treasurer", "Admin"], path: "/payouts" },
   { id: "meetings", label: "Meetings", icon: Calendar, roles: ["Member", "Treasurer", "Admin"], path: "/meetings" },
   { id: "analytics", label: "Analytics", icon: BarChart3, roles: ["Treasurer", "Admin"], path: "/analytics" },
+  
   { id: "manage-contributions", label: "Manage Contributions", icon: ClipboardList, roles: ["Treasurer", "Admin"], path: "/manage-contributions" },
   { id: "members", label: "Members", icon: Users, roles: ["Admin"], path: "/members" },
   { id: "contributions", label: "My Contributions", icon: CreditCard, roles: ["Member", "Treasurer", "Admin"], path: "/contributions" },
@@ -36,7 +37,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const currentGroupId = (params.groupId || params.id) as string;
 
   const { rates, loading: ratesLoading } = useRates();
-  const [activePage, setActivePage] = useState("dashboard");
+  const pathname = usePathname();
+const [activePage, setActivePage] = useState(() => {
+  const match = NAV.find((n) => pathname.startsWith(n.path));
+  return match?.id ?? "dashboard";
+});
   const [mobileOpen, setMobileOpen] = useState(false);
 
   const user: User = {
