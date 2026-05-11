@@ -66,7 +66,7 @@ export default function MinutesForm({ meetingId, initialMinutes }: MinutesFormPr
                 )}
               </div>
               <div className="mt-4 border-t pt-4">
-                <Button onClick={() => setIsEditing(true)} variant="outline" size="sm">
+                <Button onClick={() => setIsEditing(true)} variant="secondary" size="sm">
                   Edit Minutes
                 </Button>
               </div>

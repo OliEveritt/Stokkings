@@ -1,6 +1,6 @@
 "use client";
 
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { doc, getDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
@@ -8,22 +8,16 @@ import { useActiveGroup } from "@/context/GroupContext";
 import { useAuth } from "@/hooks/useAuth";
 import { Card } from "@/components/ui/Card";
 import { LoadingSpinner } from "@/components/ui/LoadingSpinner";
-import { Badge } from "@/components/ui/Badge";
 import MinutesForm from "@/components/forms/MinutesForm";
 
 export default function MeetingDetailPage() {
   const { id } = useParams();
+  const router = useRouter();
   const { user } = useAuth();
   const { activeGroup } = useActiveGroup();
   const [meeting, setMeeting] = useState<any>(null);
   const [loading, setLoading] = useState(true);
-
-  // Authorization check: 
-  // In many Stokkings setups, roles are stored in a 'group_members' collection 
-  // or a metadata field. Adjust this check based on where you store the 'Treasurer' flag.
-  const isAuthorized = activeGroup && (user?.uid === activeGroup.treasurerId || user?.uid === activeGroup.adminId);
-
-  
+  const [userRole, setUserRole] = useState<string>("Member");
 
   useEffect(() => {
     async function fetchMeeting() {
@@ -43,6 +37,34 @@ export default function MeetingDetailPage() {
     fetchMeeting();
   }, [id]);
 
+  useEffect(() => {
+    async function fetchRole() {
+      if (!user?.uid) return;
+      try {
+        const userSnap = await getDoc(doc(db, "users", user.uid));
+        const topRole = userSnap.exists() ? userSnap.data()?.role : "Member";
+        if (["Admin", "admin", "Treasurer", "treasurer"].includes(topRole)) {
+          setUserRole(topRole);
+          return;
+        }
+        if (!activeGroup?.id) return;
+        const memberSnap = await getDoc(
+          doc(db, "groups", activeGroup.id, "group_members", user.uid)
+        );
+        setUserRole(memberSnap.exists() ? memberSnap.data()?.role ?? "Member" : "Member");
+      } catch (error) {
+        console.error("Error fetching role:", error);
+      }
+    }
+    fetchRole();
+  }, [user?.uid, activeGroup?.id]);
+
+  const canEditMinutes =
+    userRole === "Treasurer" ||
+    userRole === "treasurer" ||
+    userRole === "Admin" ||
+    userRole === "admin";
+
   if (loading) return <div className="flex justify-center p-12"><LoadingSpinner /></div>;
 
   if (!meeting) {
@@ -54,7 +76,15 @@ export default function MeetingDetailPage() {
   }
 
   return (
-    <div className="max-w-4xl mx-auto space-y-6">
+    <div className="max-w-4xl mx-auto space-y-6 p-6">
+
+      <button
+        onClick={() => router.back()}
+        className="flex items-center gap-2 text-sm text-gray-500 hover:text-emerald-600 transition-colors"
+      >
+        ← Back to Meetings
+      </button>
+
       {/* Header */}
       <div className="flex justify-between items-start">
         <div>
@@ -62,26 +92,27 @@ export default function MeetingDetailPage() {
             {meeting.agenda}
           </h1>
           <div className="flex gap-2 mt-2">
-            <Badge variant="outline">{meeting.date}</Badge>
-            <Badge variant="outline">{meeting.time}</Badge>
-            <Badge variant="secondary">{meeting.status || 'Scheduled'}</Badge>
+            <span className="text-xs font-medium px-2 py-1 rounded-full bg-gray-100 text-gray-600">{meeting.date}</span>
+            <span className="text-xs font-medium px-2 py-1 rounded-full bg-gray-100 text-gray-600">{meeting.time}</span>
+            <span className="text-xs font-medium px-2 py-1 rounded-full bg-emerald-50 text-emerald-700">{meeting.status || "Scheduled"}</span>
           </div>
         </div>
       </div>
 
       {/* Agenda Card */}
-      <Card title="Agenda">
+      <Card>
+        <p className="text-sm font-medium text-gray-500 mb-2">Agenda</p>
         <p className="text-gray-700 whitespace-pre-wrap">{meeting.agenda}</p>
       </Card>
 
       {/* Minutes Section */}
       <div className="space-y-4">
         <h2 className="text-lg font-semibold text-gray-900">Meeting Minutes</h2>
-        
-        {isAuthorized ? (
-          <MinutesForm 
-            meetingId={meeting.id} 
-            initialMinutes={meeting.minutes || ""} 
+
+        {canEditMinutes ? (
+          <MinutesForm
+            meetingId={meeting.id}
+            initialMinutes={meeting.minutes || ""}
           />
         ) : (
           <Card>
@@ -89,7 +120,9 @@ export default function MeetingDetailPage() {
               {meeting.minutes ? (
                 <p className="whitespace-pre-wrap">{meeting.minutes}</p>
               ) : (
-                <p className="italic text-gray-400">Minutes for this meeting have not been recorded yet.</p>
+                <p className="italic text-gray-400">
+                  Minutes for this meeting have not been recorded yet.
+                </p>
               )}
             </div>
           </Card>

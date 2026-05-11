@@ -1,135 +1,133 @@
 "use client";
 
+import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import {
-  collection,
-  getDocs,
-  query,
-  where,
-  orderBy,
-} from "firebase/firestore";
+import { doc, getDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
-import { useFirebaseAuth } from "@/context/FirebaseAuthContext";
-import Link from "next/link";
-import { Calendar, Clock } from "lucide-react";
+import { useActiveGroup } from "@/context/GroupContext";
+import { useAuth } from "@/hooks/useAuth";
+import { Card } from "@/components/ui/Card";
+import { LoadingSpinner } from "@/components/ui/LoadingSpinner";
+import MinutesForm from "@/components/forms/MinutesForm";
 
-interface Meeting {
-  id: string;
-  groupId: string;
-  groupName?: string;
-  date: string;
-  time: string;
-  scheduledAt: string;
-  agenda: string;
-  status: string;
-}
-
-export default function MeetingsPage() {
-  const { user, loading: authLoading } = useFirebaseAuth();
-  const [meetings, setMeetings] = useState<Meeting[]>([]);
+export default function MeetingDetailPage() {
+  const { id } = useParams();
+  const router = useRouter();
+  const { user } = useAuth();
+  const { activeGroup } = useActiveGroup();
+  const [meeting, setMeeting] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [userRole, setUserRole] = useState<string>("Member");
 
   useEffect(() => {
-    if (authLoading || !user) return;
-    (async () => {
+    async function fetchMeeting() {
+      if (!id) return;
       try {
-        const groupSnap = await getDocs(
-          query(collection(db, "groups"), where("members", "array-contains", user.uid))
-        );
-        const groupIds = groupSnap.docs.map((d) => d.id);
-        if (groupIds.length === 0) {
-          setMeetings([]);
-          return;
+        const docRef = doc(db, "meetings", id as string);
+        const docSnap = await getDoc(docRef);
+        if (docSnap.exists()) {
+          setMeeting({ id: docSnap.id, ...docSnap.data() });
         }
-        // Firestore "in" query supports max 10 values per call.
-        const chunks: string[][] = [];
-        for (let i = 0; i < groupIds.length; i += 10) {
-          chunks.push(groupIds.slice(i, i + 10));
-        }
-        const all: Meeting[] = [];
-        for (const chunk of chunks) {
-          const snap = await getDocs(
-            query(
-              collection(db, "meetings"),
-              where("groupId", "in", chunk),
-              orderBy("scheduledAt", "desc")
-            )
-          );
-          snap.forEach((d) => all.push({ id: d.id, ...(d.data() as Omit<Meeting, "id">) }));
-        }
-        setMeetings(all);
+      } catch (error) {
+        console.error("Error fetching meeting:", error);
       } finally {
         setLoading(false);
       }
-    })();
-  }, [authLoading, user]);
+    }
+    fetchMeeting();
+  }, [id]);
 
-  const now = Date.now();
-  const upcoming = meetings
-    .filter((m) => new Date(m.scheduledAt).getTime() >= now)
-    .sort((a, b) => new Date(a.scheduledAt).getTime() - new Date(b.scheduledAt).getTime());
-  const past = meetings
-    .filter((m) => new Date(m.scheduledAt).getTime() < now)
-    .sort((a, b) => new Date(b.scheduledAt).getTime() - new Date(a.scheduledAt).getTime());
+  useEffect(() => {
+    async function fetchRole() {
+      if (!user?.uid) return;
+      try {
+        const userSnap = await getDoc(doc(db, "users", user.uid));
+        const topRole = userSnap.exists() ? userSnap.data()?.role : "Member";
+        if (["Admin", "admin", "Treasurer", "treasurer"].includes(topRole)) {
+          setUserRole(topRole);
+          return;
+        }
+        if (!activeGroup?.id) return;
+        const memberSnap = await getDoc(
+          doc(db, "groups", activeGroup.id, "group_members", user.uid)
+        );
+        setUserRole(memberSnap.exists() ? memberSnap.data()?.role ?? "Member" : "Member");
+      } catch (error) {
+        console.error("Error fetching role:", error);
+      }
+    }
+    fetchRole();
+  }, [user?.uid, activeGroup?.id]);
+
+  const canEditMinutes =
+    userRole === "Treasurer" ||
+    userRole === "treasurer" ||
+    userRole === "Admin" ||
+    userRole === "admin";
+
+  if (loading) return <div className="flex justify-center p-12"><LoadingSpinner /></div>;
+
+  if (!meeting) {
+    return (
+      <div className="p-8 text-center">
+        <p className="text-gray-500">Meeting not found.</p>
+      </div>
+    );
+  }
 
   return (
-    <div className="p-6 max-w-4xl mx-auto">
-      <h1 className="text-3xl font-black text-gray-900 mb-1">Your Meetings</h1>
-      <p className="text-sm text-gray-500 mb-8">
-        All meetings across the groups you belong to. To schedule, open a specific group.
-      </p>
+    <div className="max-w-4xl mx-auto space-y-6 p-6">
 
-      {loading && <p className="text-sm text-gray-400">Loading...</p>}
+      <button
+        onClick={() => router.back()}
+        className="flex items-center gap-2 text-sm text-gray-500 hover:text-emerald-600 transition-colors"
+      >
+        ← Back to Meetings
+      </button>
 
-      {!loading && (
-        <>
-          <Section title="Upcoming" meetings={upcoming} />
-          <Section title="Past" meetings={past} />
-        </>
-      )}
-    </div>
-  );
-}
+      {/* Header */}
+      <div className="flex justify-between items-start">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900 tracking-tight">
+            {meeting.agenda}
+          </h1>
+          <div className="flex gap-2 mt-2">
+            <span className="text-xs font-medium px-2 py-1 rounded-full bg-gray-100 text-gray-600">{meeting.date}</span>
+            <span className="text-xs font-medium px-2 py-1 rounded-full bg-gray-100 text-gray-600">{meeting.time}</span>
+            <span className="text-xs font-medium px-2 py-1 rounded-full bg-emerald-50 text-emerald-700">{meeting.status || "Scheduled"}</span>
+          </div>
+        </div>
+      </div>
 
-function Section({ title, meetings }: { title: string; meetings: Meeting[] }) {
-  return (
-    <div className="mb-8">
-      <h2 className="text-xs font-black uppercase tracking-widest text-gray-400 mb-3">
-        {title} ({meetings.length})
-      </h2>
-      <div className="space-y-3">
-        {meetings.length === 0 ? (
-          <p className="text-sm text-gray-400 italic">No {title.toLowerCase()} meetings.</p>
+      {/* Agenda Card */}
+      <Card>
+        <p className="text-sm font-medium text-gray-500 mb-2">Agenda</p>
+        <p className="text-gray-700 whitespace-pre-wrap">{meeting.agenda}</p>
+      </Card>
+
+      {/* Minutes Section */}
+      <div className="space-y-4">
+        <h2 className="text-lg font-semibold text-gray-900">Meeting Minutes</h2>
+
+        {canEditMinutes ? (
+          <MinutesForm
+            meetingId={meeting.id}
+            initialMinutes={meeting.minutes || ""}
+          />
         ) : (
-          meetings.map((m) => <Card key={m.id} meeting={m} />)
+          <Card>
+            <div className="prose max-w-none text-gray-700">
+              {meeting.minutes ? (
+                <p className="whitespace-pre-wrap">{meeting.minutes}</p>
+              ) : (
+                <p className="italic text-gray-400">
+                  Minutes for this meeting have not been recorded yet.
+                </p>
+              )}
+            </div>
+          </Card>
         )}
       </div>
     </div>
-  );
-}
-
-function Card({ meeting }: { meeting: Meeting }) {
-  const dateStr = new Date(meeting.scheduledAt).toLocaleDateString(undefined, {
-    weekday: "short",
-    year: "numeric",
-    month: "short",
-    day: "numeric",
-  });
-  return (
-    <Link
-      href={`/groups/${meeting.groupId}/meetings`}
-      className="block bg-white border border-gray-100 rounded-2xl p-5 shadow-sm hover:border-emerald-300"
-    >
-      <div className="flex items-center gap-3 text-sm font-semibold text-gray-700">
-        <Calendar size={16} className="text-emerald-600" />
-        {dateStr}
-        <Clock size={16} className="text-emerald-600 ml-2" />
-        {meeting.time}
-      </div>
-      <p className="text-sm text-gray-600 mt-2 line-clamp-2 whitespace-pre-wrap">{meeting.agenda}</p>
-      {meeting.groupName && (
-        <p className="text-xs text-gray-400 mt-2">Group: {meeting.groupName}</p>
-      )}
-    </Link>
   );
 }
