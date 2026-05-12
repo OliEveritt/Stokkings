@@ -1,8 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
-import { ArrowLeft } from "lucide-react";
+
 import { useActiveGroup } from "@/context/GroupContext";
 import { ComplianceChart } from "@/components/charts/ComplianceChart";
 import { EmptyState } from "@/components/ui/EmptyState";
@@ -11,7 +10,7 @@ import { Card } from "@/components/ui/Card";
 import { ComplianceReportData } from "@/services/analytics.service";
 
 export default function ContributionCompliancePage() {
-  const router = useRouter();
+  
   const { allGroups, activeGroup, loading: groupLoading } = useActiveGroup();
 
   const [selectedGroupId, setSelectedGroupId] = useState<string>("");
@@ -58,13 +57,7 @@ export default function ContributionCompliancePage() {
     <div className="p-6 space-y-6">
       {/* Header */}
       <div>
-        <button
-          onClick={() => router.push("/analytics")}
-          className="flex items-center gap-2 text-sm text-gray-500 hover:text-emerald-600 transition-colors mb-3"
-        >
-          <ArrowLeft size={16} />
-          Back to Analytics
-        </button>
+        
         <div className="flex items-start justify-between gap-4 flex-wrap">
           <div>
             <h1 className="text-2xl font-semibold text-gray-900">Contribution Compliance</h1>

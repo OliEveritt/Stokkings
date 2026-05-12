@@ -1,0 +1,18 @@
+@startuml use_case_3_4
+left to right direction
+actor "Treasurer" as T
+actor "Member" as M
+
+rectangle "Stokkings System" {
+  usecase "View Meeting Details" as UC1
+  usecase "Record/Edit Meeting Minutes" as UC2
+  usecase "Authorize Action" as UC3
+  usecase "Validate Meeting Data" as UC4
+}
+
+T --> UC1
+T --> UC2
+UC2 ..> UC3 : <<include>>
+UC2 ..> UC4 : <<include>>
+M --> UC1
+@enduml
