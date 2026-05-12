@@ -3,7 +3,8 @@
 import { useState } from "react";
 import { CalendarDays, Clock, FileText, Loader2 } from "lucide-react";
 import { auth } from "@/lib/firebase";
-import { validateMeetingInput } from "@/validators/meeting.validator";
+// Updated: Import the Class and Input Interface
+import { MeetingValidator, MeetingInput } from "@/validators/meeting.validator";
 
 interface ScheduleMeetingFormProps {
   groupId: string;
@@ -15,7 +16,7 @@ export default function ScheduleMeetingForm({ groupId, onScheduled }: ScheduleMe
   const [time, setTime] = useState("");
   const [agenda, setAgenda] = useState("");
   const [loading, setLoading] = useState(false);
-  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [errors, setErrors] = useState<string[]>([]); // Refined for ValidationResult
   const [serverError, setServerError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
@@ -23,13 +24,24 @@ export default function ScheduleMeetingForm({ groupId, onScheduled }: ScheduleMe
     e.preventDefault();
     setServerError(null);
     setSuccess(null);
+    setErrors([]);
 
-    const clientCheck = validateMeetingInput({ groupId, date, time, agenda });
-    if (!clientCheck.ok) {
-      setErrors(clientCheck.errors);
+    // 1. Construct input object matching the UML Interface
+    const input: MeetingInput = {
+      groupId,
+      date,
+      agenda,
+      minutes: "", // Not recorded during initial scheduling
+    };
+
+    // 2. Implementation of Mid-Sprint Change: 
+    // isRecordingMinutes is FALSE here, enforcing the "future date only" rule.
+    const validation = MeetingValidator.validateMeetingInput(input, Date.now(), false);
+
+    if (!validation.isValid) {
+      setErrors(validation.errors);
       return;
     }
-    setErrors({});
 
     const fbUser = auth.currentUser;
     if (!fbUser) {
@@ -48,12 +60,13 @@ export default function ScheduleMeetingForm({ groupId, onScheduled }: ScheduleMe
         },
         body: JSON.stringify({ groupId, date, time, agenda }),
       });
+      
       const data = await res.json();
       if (!res.ok) {
-        if (data.fieldErrors) setErrors(data.fieldErrors);
         setServerError(data.error || "Failed to schedule meeting");
         return;
       }
+      
       setSuccess("Meeting scheduled.");
       setDate("");
       setTime("");
@@ -68,7 +81,7 @@ export default function ScheduleMeetingForm({ groupId, onScheduled }: ScheduleMe
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4 bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
+    <form onSubmit={handleSubmit} className="space-y-4 bg-white p-6 rounded-2xl border border-gray-100 shadow-sm w-full max-w-none">
       <h3 className="text-sm font-black text-gray-400 uppercase tracking-widest mb-2">
         Schedule Meeting
       </h3>
@@ -86,7 +99,6 @@ export default function ScheduleMeetingForm({ groupId, onScheduled }: ScheduleMe
               required
             />
           </div>
-          {errors.date && <p className="text-xs text-red-600 mt-1">{errors.date}</p>}
         </div>
         <div className="flex-1">
           <label className="text-[10px] font-bold text-gray-400 ml-1 uppercase tracking-wider">Time</label>
@@ -100,7 +112,6 @@ export default function ScheduleMeetingForm({ groupId, onScheduled }: ScheduleMe
               required
             />
           </div>
-          {errors.time && <p className="text-xs text-red-600 mt-1">{errors.time}</p>}
         </div>
       </div>
 
@@ -117,8 +128,14 @@ export default function ScheduleMeetingForm({ groupId, onScheduled }: ScheduleMe
             required
           />
         </div>
-        {errors.agenda && <p className="text-xs text-red-600 mt-1">{errors.agenda}</p>}
       </div>
+
+      {/* Validation Errors Display */}
+      {errors.length > 0 && (
+        <div className="p-3 bg-red-50 text-red-700 rounded-xl text-xs space-y-1">
+          {errors.map((err, i) => <p key={i}>• {err}</p>)}
+        </div>
+      )}
 
       {serverError && (
         <div className="p-3 bg-red-50 text-red-700 rounded-xl text-sm">{serverError}</div>

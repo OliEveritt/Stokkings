@@ -1,16 +1,13 @@
 @startuml
 node "Client Browser" {
-    artifact "Next.js App"
+    component "Next.js App (Local)" as App
 }
 
-node "Azure App Service" {
-    [Production Server]
+cloud "Google Cloud Platform" {
+    database "Cloud Firestore" as DB
+    node "Firebase Auth" as Auth
 }
 
-cloud "Firebase" {
-    database "Firestore"
-}
-
-"Client Browser" -- "Azure App Service" : HTTPS
-"Azure App Service" -- "Firebase" : API Calls
+App -- DB : Firestore SDK (Web)
+App -- Auth : Authentication API
 @endum

@@ -1,131 +1,123 @@
 "use client";
 
-import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+import { useParams } from "next/navigation";
+import { useFirebaseAuth } from "@/context/FirebaseAuthContext";
 import { doc, getDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
-import { useActiveGroup } from "@/context/GroupContext";
-import { useAuth } from "@/hooks/useAuth";
-import { Card } from "@/components/ui/Card";
-import { LoadingSpinner } from "@/components/ui/LoadingSpinner";
+import Link from "next/link";
 import MinutesForm from "@/components/forms/MinutesForm";
+import { Calendar, Clock, ChevronLeft, BookOpen } from "lucide-react";
+
+interface Meeting {
+  id: string;
+  groupId: string;
+  groupName?: string;
+  date: string;
+  time: string;
+  scheduledAt: string;
+  agenda: string;
+  status: string;
+  minutes?: string;
+}
 
 export default function MeetingDetailPage() {
   const { id } = useParams();
-  const router = useRouter();
-  const { user } = useAuth();
-  const { activeGroup } = useActiveGroup();
-  const [meeting, setMeeting] = useState<any>(null);
+  const { user, loading: authLoading } = useFirebaseAuth();
+  const [meeting, setMeeting] = useState<Meeting | null>(null);
   const [loading, setLoading] = useState(true);
-  const [userRole, setUserRole] = useState<string>("Member");
 
   useEffect(() => {
-    async function fetchMeeting() {
+    const fetchSingleMeeting = async () => {
       if (!id) return;
       try {
+        setLoading(true);
         const docRef = doc(db, "meetings", id as string);
         const docSnap = await getDoc(docRef);
+
         if (docSnap.exists()) {
-          setMeeting({ id: docSnap.id, ...docSnap.data() });
+          setMeeting({ id: docSnap.id, ...docSnap.data() } as Meeting);
+        } else {
+          console.error("Meeting not found");
         }
-      } catch (error) {
-        console.error("Error fetching meeting:", error);
+      } catch (err) {
+        console.error("Error fetching meeting:", err);
       } finally {
         setLoading(false);
       }
-    }
-    fetchMeeting();
+    };
+
+    fetchSingleMeeting();
   }, [id]);
 
-  useEffect(() => {
-    async function fetchRole() {
-      if (!user?.uid) return;
-      try {
-        const userSnap = await getDoc(doc(db, "users", user.uid));
-        const topRole = userSnap.exists() ? userSnap.data()?.role : "Member";
-        if (["Admin", "admin", "Treasurer", "treasurer"].includes(topRole)) {
-          setUserRole(topRole);
-          return;
-        }
-        if (!activeGroup?.id) return;
-        const memberSnap = await getDoc(
-          doc(db, "groups", activeGroup.id, "group_members", user.uid)
-        );
-        setUserRole(memberSnap.exists() ? memberSnap.data()?.role ?? "Member" : "Member");
-      } catch (error) {
-        console.error("Error fetching role:", error);
-      }
-    }
-    fetchRole();
-  }, [user?.uid, activeGroup?.id]);
+  if (authLoading || loading) return <div className="p-8 text-gray-500 font-semibold italic">Loading meeting details...</div>;
+  if (!meeting) return <div className="p-8 text-red-500">Meeting not found.</div>;
 
-  const canEditMinutes =
-    userRole === "Treasurer" ||
-    userRole === "treasurer" ||
-    userRole === "Admin" ||
-    userRole === "admin";
-
-  if (loading) return <div className="flex justify-center p-12"><LoadingSpinner /></div>;
-
-  if (!meeting) {
-    return (
-      <div className="p-8 text-center">
-        <p className="text-gray-500">Meeting not found.</p>
-      </div>
-    );
-  }
+  const isTreasurerOrAdmin = user?.role === "Treasurer" || user?.role === "Admin";
 
   return (
-    <div className="max-w-4xl mx-auto space-y-6 p-6">
+    <div className="max-w-4xl mx-auto p-6 space-y-6">
+      {/* Navigation */}
+      <Link href="/meetings" className="flex items-center gap-2 text-sm text-gray-500 hover:text-emerald-600 transition-colors">
+        <ChevronLeft size={16} /> Back to Meetings
+      </Link>
 
-      <button
-        onClick={() => router.back()}
-        className="flex items-center gap-2 text-sm text-gray-500 hover:text-emerald-600 transition-colors"
-      >
-        ← Back to Meetings
-      </button>
-
-      {/* Header */}
-      <div className="flex justify-between items-start">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900 tracking-tight">
-            {meeting.agenda}
-          </h1>
-          <div className="flex gap-2 mt-2">
-            <span className="text-xs font-medium px-2 py-1 rounded-full bg-gray-100 text-gray-600">{meeting.date}</span>
-            <span className="text-xs font-medium px-2 py-1 rounded-full bg-gray-100 text-gray-600">{meeting.time}</span>
-            <span className="text-xs font-medium px-2 py-1 rounded-full bg-emerald-50 text-emerald-700">{meeting.status || "Scheduled"}</span>
+      {/* Meeting Detail Card */}
+      <div className="bg-white rounded-2xl p-8 shadow-sm border border-gray-100">
+        <h1 className="text-2xl font-bold text-gray-900 mb-6">Meeting Details</h1>
+        
+        <div className="flex gap-6 mb-8 text-gray-600">
+          <div className="flex items-center gap-2">
+            <Calendar size={20} className="text-emerald-600" />
+            <span className="font-semibold">{meeting.date}</span>
           </div>
+          <div className="flex items-center gap-2">
+            <Clock size={20} className="text-emerald-600" />
+            <span className="font-semibold">{meeting.time}</span>
+          </div>
+        </div>
+
+        <div className="space-y-2">
+          <h3 className="text-xs font-black uppercase tracking-widest text-gray-400">Agenda</h3>
+          <p className="text-gray-700 bg-gray-50 p-4 rounded-xl whitespace-pre-wrap border border-gray-100">
+            {meeting.agenda}
+          </p>
         </div>
       </div>
 
-      {/* Agenda Card */}
-      <Card>
-        <p className="text-sm font-medium text-gray-500 mb-2">Agenda</p>
-        <p className="text-gray-700 whitespace-pre-wrap">{meeting.agenda}</p>
-      </Card>
-
       {/* Minutes Section */}
       <div className="space-y-4">
-        <h2 className="text-lg font-semibold text-gray-900">Meeting Minutes</h2>
+        <div className="flex items-center gap-2 px-2">
+          <BookOpen size={20} className="text-emerald-600" />
+          <h2 className="text-lg font-bold text-gray-900">Meeting Minutes</h2>
+        </div>
 
-        {canEditMinutes ? (
-          <MinutesForm
-            meetingId={meeting.id}
-            initialMinutes={meeting.minutes || ""}
-          />
-        ) : (
-          <Card>
-            <div className="prose max-w-none text-gray-700">
-              {meeting.minutes ? (
-                <p className="whitespace-pre-wrap">{meeting.minutes}</p>
-              ) : (
-                <p className="italic text-gray-400">
-                  Minutes for this meeting have not been recorded yet.
-                </p>
-              )}
+        {isTreasurerOrAdmin ? (
+          /* CRITICAL GUARD: Only render MinutesForm if meeting.groupId is available.
+             This ensures the validator receives all required context for the 
+             mid-sprint requirement change.
+          */
+          meeting?.groupId ? (
+            <MinutesForm 
+              meetingId={meeting.id} 
+              initialMinutes={meeting.minutes || ""}
+              meetingDate={meeting.date}
+              groupId={meeting.groupId}
+              agenda={meeting.agenda}
+            />
+          ) : (
+            <div className="flex items-center justify-center p-8 border border-dashed rounded-2xl">
+              <p className="text-sm text-gray-400 animate-pulse">Syncing group data...</p>
             </div>
-          </Card>
+          )
+        ) : (
+          <div className="bg-white rounded-2xl p-8 shadow-sm border border-gray-100">
+            {meeting.minutes ? (
+              <p className="text-gray-700 whitespace-pre-wrap leading-relaxed">{meeting.minutes}</p>
+            ) : (
+              <p className="italic text-gray-400">No minutes recorded for this meeting.</p>
+            )}
+          </div>
         )}
       </div>
     </div>

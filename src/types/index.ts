@@ -1,5 +1,7 @@
 import type { Role } from "./enums";
 export type { Role } from "./enums";
+import { ComponentType, SVGProps } from "react";
+
 
 export interface User {
   name: string;
@@ -25,7 +27,7 @@ export interface Rates {
 export interface NavItem {
   id: string;
   label: string;
-  icon: React.ComponentType<any>;
+  icon: ComponentType<SVGProps<SVGSVGElement>>; 
   roles: Role[];
   path: string;
 }

@@ -1,16 +1,22 @@
-@startuml
-package "src/app/(dashboard)/meetings/[id]" {
-    [page.tsx] as Page
+@startuml development_view_3_4
+package "src" {
+    package "app" {
+        package "(dashboard)" {
+            component "MeetingDetailPage"
+        }
+    }
+    package "components" {
+        component "MinutesForm"
+    }
+    package "validators" {
+        component "MeetingValidator"
+    }
+    package "lib" {
+        component "Firebase"
+    }
 }
 
-package "src/components/forms" {
-    [MinutesForm.tsx] as Form
-}
-
-package "src/validators" {
-    [meeting.validator.ts] as Logic
-}
-
-Page *-- Form
-Form --> Logic
-@endum
+"MeetingDetailPage" --> "MinutesForm"
+"MinutesForm" --> "MeetingValidator"
+"MinutesForm" --> "Firebase"
+@enduml

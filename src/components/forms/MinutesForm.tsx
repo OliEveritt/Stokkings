@@ -6,19 +6,29 @@ import { db } from "@/lib/firebase";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { LoadingSpinner } from "@/components/ui/LoadingSpinner";
-import { Toast } from "@/components/ui/Toast"; // Import the component you just shared
+import { Toast } from "@/components/ui/Toast";
+// Import the validator and input type
+import { MeetingValidator, MeetingInput } from "@/validators/meeting.validator";
 
 interface MinutesFormProps {
   meetingId: string;
   initialMinutes: string;
+  meetingDate: string; // Pass the meeting date for validation
+  groupId: string;     // Pass the groupId for validation
+  agenda: string;      // Pass the agenda for validation
 }
 
-export default function MinutesForm({ meetingId, initialMinutes }: MinutesFormProps) {
+export default function MinutesForm({ 
+  meetingId, 
+  initialMinutes, 
+  meetingDate, 
+  groupId, 
+  agenda 
+}: MinutesFormProps) {
   const [minutes, setMinutes] = useState(initialMinutes);
   const [isSaving, setIsSaving] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
 
-  // Toast State
   const [toast, setToast] = useState<{ message: string; type: "success" | "error"; visible: boolean }>({
     message: "",
     type: "success",
@@ -27,13 +37,28 @@ export default function MinutesForm({ meetingId, initialMinutes }: MinutesFormPr
 
   const triggerToast = (message: string, type: "success" | "error") => {
     setToast({ message, type, visible: true });
-    // Hide toast after 3 seconds
     setTimeout(() => {
       setToast((prev) => ({ ...prev, visible: false }));
     }, 3000);
   };
 
   const handleSave = async () => {
+    // 1. Prepare data for validation
+    const input: MeetingInput = {
+      groupId,
+      date: meetingDate,
+      agenda,
+      minutes
+    };
+
+    // 2. Run Validation (Mid-sprint change: isRecordingMinutes = true)
+    const validation = MeetingValidator.validateMeetingInput(input, Date.now(), true);
+
+    if (!validation.isValid) {
+      triggerToast(validation.errors[0], "error");
+      return;
+    }
+
     setIsSaving(true);
     try {
       const meetingRef = doc(db, "meetings", meetingId);
@@ -44,6 +69,8 @@ export default function MinutesForm({ meetingId, initialMinutes }: MinutesFormPr
       
       triggerToast("Minutes updated successfully", "success");
       setIsEditing(false);
+      window.location.reload(); 
+
     } catch (error) {
       console.error("Error updating minutes:", error);
       triggerToast("Failed to update minutes", "error");
@@ -104,7 +131,6 @@ export default function MinutesForm({ meetingId, initialMinutes }: MinutesFormPr
         </div>
       </Card>
 
-      {/* Render Toast at the bottom level */}
       <Toast 
         message={toast.message} 
         type={toast.type} 
