@@ -1,16 +1,35 @@
+<<<<<<< HEAD
 @startuml
+=======
+@startuml use_case_3_4
+>>>>>>> 11-us-31-working-version
 left to right direction
 actor "Treasurer" as T
 actor "Member" as M
 
+<<<<<<< HEAD
 rectangle "Stokkings System - Sprint 3" {
   usecase "Record Meeting Minutes" as UC1
   usecase "View Meeting Minutes" as UC2
   usecase "Authorize Action" as UC3
+=======
+rectangle "Stokkings System" {
+  usecase "View Meeting Details" as UC1
+  usecase "Record/Edit Meeting Minutes" as UC2
+  usecase "Authorize Action" as UC3
+  usecase "Validate Meeting Data" as UC4
+>>>>>>> 11-us-31-working-version
 }
 
 T --> UC1
 T --> UC2
+<<<<<<< HEAD
 M --> UC2
 UC1 ..> UC3 : <<include>>
 @endum
+=======
+UC2 ..> UC3 : <<include>>
+UC2 ..> UC4 : <<include>>
+M --> UC1
+@enduml
+>>>>>>> 11-us-31-working-version

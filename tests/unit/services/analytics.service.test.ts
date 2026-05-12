@@ -8,7 +8,11 @@ vi.mock("@/lib/firebase", () => ({
 }));
 
 // Mock the repository so no Firestore calls are made during tests.
-vi.mock("@/repositories/analytics.repository");
+vi.mock("@/repositories/analytics.repository", () => ({
+  analyticsRepository: {
+    getContributionRecords: vi.fn(),
+  },
+}));
 
 import { AnalyticsService } from "@/services/analytics.service";
 import * as repo from "@/repositories/analytics.repository";
