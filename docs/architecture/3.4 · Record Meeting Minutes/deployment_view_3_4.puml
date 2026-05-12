@@ -1,9 +1,4 @@
-<<<<<<< HEAD
-@startuml
-node "Client Browser" {
-=======
 @startuml node "Client Browser" {
->>>>>>> 11-us-31-working-version
     component "Next.js App (Local)" as App
 }
 
