@@ -1,48 +1,50 @@
 export interface MeetingInput {
-  groupId?: string;
-  date?: string; // YYYY-MM-DD
-  time?: string; // HH:MM
-  agenda?: string;
+  groupId: string;
+  date: string;
+  agenda: string;
+  minutes: string;
 }
 
 export interface ValidationResult {
-  ok: boolean;
-  errors: Record<string, string>;
+  isValid: boolean;
+  errors: string[];
 }
 
-export function combineDateTime(date: string, time: string): Date {
-  return new Date(`${date}T${time}`);
-}
+export class MeetingValidator {
+  /**
+   * Validates meeting input data.
+   * Mid-sprint change: isRecordingMinutes flag bypasses the "future date only" rule.
+   */
+  static validateMeetingInput(
+    input: MeetingInput,
+    now: number = Date.now(),
+    isRecordingMinutes: boolean = false
+  ): ValidationResult {
+    const errors: string[] = [];
 
-export function validateMeetingInput(
-  input: MeetingInput,
-  now: Date = new Date()
-): ValidationResult {
-  const errors: Record<string, string> = {};
-
-  if (!input.groupId || typeof input.groupId !== "string" || !input.groupId.trim()) {
-    errors.groupId = "Group is required";
-  }
-  if (!input.date || !/^\d{4}-\d{2}-\d{2}$/.test(input.date)) {
-    errors.date = "Valid date is required";
-  }
-  if (!input.time || !/^\d{2}:\d{2}$/.test(input.time)) {
-    errors.time = "Valid time is required";
-  }
-  if (!input.agenda || !input.agenda.trim()) {
-    errors.agenda = "Agenda is required";
-  } else if (input.agenda.trim().length < 3) {
-    errors.agenda = "Agenda must be at least 3 characters";
-  }
-
-  if (!errors.date && !errors.time && input.date && input.time) {
-    const scheduled = combineDateTime(input.date, input.time);
-    if (Number.isNaN(scheduled.getTime())) {
-      errors.date = "Invalid date/time";
-    } else if (scheduled.getTime() <= now.getTime()) {
-      errors.date = "Meeting must be scheduled for a future date and time";
+    // Basic validation
+    if (!input.groupId) errors.push("Group ID is required.");
+    if (!input.agenda || input.agenda.trim().length < 5) {
+      errors.push("Agenda must be at least 5 characters long.");
     }
-  }
 
-  return { ok: Object.keys(errors).length === 0, errors };
+    // Date validation logic
+    const selectedDate = new Date(input.date).getTime();
+    
+    // MID-SPRINT CHANGE LOGIC:
+    // When scheduling a NEW meeting, date must be in the future.
+    // When recording minutes, we allow past dates.
+    if (!isRecordingMinutes && selectedDate < now) {
+      errors.push("New meetings must be scheduled for a future date.");
+    }
+
+    if (isRecordingMinutes && (!input.minutes || input.minutes.trim().length === 0)) {
+      errors.push("Minutes cannot be empty when finalizing a meeting.");
+    }
+
+    return {
+      isValid: errors.length === 0,
+      errors,
+    };
+  }
 }

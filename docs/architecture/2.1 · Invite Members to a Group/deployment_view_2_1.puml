@@ -1,4 +1,4 @@
-@startuml
+@startuml Deployment_View_2_1
 node "Client Device" {
     component "Web Browser"
 }

@@ -1,0 +1,16 @@
+@startuml
+left to right direction
+actor "Treasurer" as T
+actor "Member" as M
+
+rectangle "Stokkings System - Sprint 3" {
+  usecase "Record Meeting Minutes" as UC1
+  usecase "View Meeting Minutes" as UC2
+  usecase "Authorize Action" as UC3
+}
+
+T --> UC1
+T --> UC2
+M --> UC2
+UC1 ..> UC3 : <<include>>
+@endum

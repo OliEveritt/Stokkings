@@ -1,4 +1,4 @@
-@startuml
+@startuml Development_View_2_1
 package "stokkings-root" {
     package "app/api/invite" {
         [route.ts (Accept Logic)]

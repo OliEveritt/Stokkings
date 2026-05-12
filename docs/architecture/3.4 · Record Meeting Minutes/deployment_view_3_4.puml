@@ -1,0 +1,13 @@
+@startuml
+node "Client Browser" {
+    component "Next.js App (Local)" as App
+}
+
+cloud "Google Cloud Platform" {
+    database "Cloud Firestore" as DB
+    node "Firebase Auth" as Auth
+}
+
+App -- DB : Firestore SDK (Web)
+App -- Auth : Authentication API
+@endum

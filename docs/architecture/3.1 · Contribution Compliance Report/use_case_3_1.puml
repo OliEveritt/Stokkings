@@ -1,0 +1,86 @@
+@startuml use_case_2_1 
+
+title Stokkings — Use Case View (Sprint 3)\nUS-3.1: Contribution Compliance Report
+
+left to right direction
+skinparam packageStyle rectangle
+skinparam actorStyle awesome
+skinparam usecaseBorderColor #10b981
+skinparam usecaseBackgroundColor #f0fdf4
+skinparam actorBorderColor #065f46
+skinparam arrowColor #6b7280
+
+actor Admin as admin
+actor Treasurer as treasurer
+actor Member as member
+
+rectangle "Stokkings Platform" {
+
+  package "Analytics" {
+    usecase "View Analytics Dashboard" as UC_ANALYTICS
+    usecase "View Contribution\nCompliance Report" as UC_COMPLIANCE
+    usecase "Select Group for\nCompliance View" as UC_SELECT_GROUP
+    usecase "View Compliance\nChart Over Time" as UC_CHART
+    usecase "View Empty State\n(No Data)" as UC_EMPTY
+  }
+
+  package "Contributions" {
+    usecase "Make Contribution" as UC_CONTRIBUTE
+    usecase "Confirm Contribution" as UC_CONFIRM
+    usecase "View My Contributions" as UC_VIEW_CONTRIB
+  }
+
+  package "Group Management" {
+    usecase "Create Group" as UC_CREATE
+    usecase "Join Group" as UC_JOIN
+    usecase "Manage Members" as UC_MEMBERS
+  }
+
+  package "Payouts" {
+    usecase "View Payout Schedule" as UC_PAYOUTS
+  }
+}
+
+' Admin associations
+admin --> UC_ANALYTICS
+admin --> UC_COMPLIANCE
+admin --> UC_SELECT_GROUP
+admin --> UC_CHART
+admin --> UC_EMPTY
+admin --> UC_CONFIRM
+admin --> UC_CREATE
+admin --> UC_MEMBERS
+admin --> UC_PAYOUTS
+
+' Treasurer associations
+treasurer --> UC_ANALYTICS
+treasurer --> UC_COMPLIANCE
+treasurer --> UC_SELECT_GROUP
+treasurer --> UC_CHART
+treasurer --> UC_EMPTY
+treasurer --> UC_CONFIRM
+treasurer --> UC_PAYOUTS
+
+' Member associations
+member --> UC_CONTRIBUTE
+member --> UC_VIEW_CONTRIB
+member --> UC_JOIN
+
+' Include relationships
+UC_COMPLIANCE ..> UC_SELECT_GROUP : <<include>>
+UC_COMPLIANCE ..> UC_CHART : <<include>>
+UC_COMPLIANCE ..> UC_ANALYTICS : <<include>>
+
+' Extend relationships
+UC_EMPTY ..> UC_COMPLIANCE : <<extend>>\n[no contributions exist]
+UC_CHART ..> UC_COMPLIANCE : <<extend>>\n[contributions exist]
+
+note right of UC_COMPLIANCE
+  US-3.1 — Mid-Sprint Requirement
+  UAT 1: Admin views chart of member
+          compliance percentages over time
+  UAT 2: Empty state shown when no data
+  UAT 3: 10/12 confirmed = 83% compliance
+end note
+
+@enduml

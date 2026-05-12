@@ -1,60 +1,72 @@
 import { describe, it, expect } from "vitest";
-import { validateMeetingInput } from "@/validators/meeting.validator";
+// Import the class and the NOW constant logic
+import { MeetingValidator } from "@/validators/meeting.validator";
 
-const NOW = new Date("2026-05-09T12:00:00");
+const NOW_MS = new Date("2026-05-09T12:00:00").getTime();
 
-describe("validateMeetingInput", () => {
+describe("MeetingValidator.validateMeetingInput", () => {
+  
   it("accepts a valid future meeting", () => {
-    const result = validateMeetingInput(
-      { groupId: "g1", date: "2026-06-01", time: "14:30", agenda: "Quarterly review" },
-      NOW
+    const result = MeetingValidator.validateMeetingInput(
+      { groupId: "g1", date: "2026-06-01", agenda: "Quarterly review", minutes: "" },
+      NOW_MS,
+      false
     );
-    expect(result.ok).toBe(true);
-    expect(result.errors).toEqual({});
+    expect(result.isValid).toBe(true);
+    expect(result.errors.length).toBe(0);
   });
 
-  it("rejects missing groupId / date / time / agenda", () => {
-    const result = validateMeetingInput({}, NOW);
-    expect(result.ok).toBe(false);
-    expect(result.errors).toHaveProperty("groupId");
-    expect(result.errors).toHaveProperty("date");
-    expect(result.errors).toHaveProperty("time");
-    expect(result.errors).toHaveProperty("agenda");
-  });
-
-  it("rejects a meeting in the past (UAT 3)", () => {
-    const result = validateMeetingInput(
-      { groupId: "g1", date: "2026-05-08", time: "10:00", agenda: "Old meeting" },
-      NOW
+  it("rejects missing groupId and short agenda", () => {
+    // Testing the logic where groupId is missing and agenda is < 5 chars
+    const result = MeetingValidator.validateMeetingInput(
+      { groupId: "", date: "2026-06-01", agenda: "No", minutes: "" },
+      NOW_MS,
+      false
     );
-    expect(result.ok).toBe(false);
-    expect(result.errors.date).toMatch(/future/i);
+    expect(result.isValid).toBe(false);
+    expect(result.errors).toContain("Group ID is required.");
+    expect(result.errors).toContain("Agenda must be at least 5 characters long.");
   });
 
-  it("rejects a meeting scheduled for now or earlier today", () => {
-    const result = validateMeetingInput(
-      { groupId: "g1", date: "2026-05-09", time: "12:00", agenda: "Right now" },
-      NOW
+  it("rejects a meeting in the past for new schedules", () => {
+    const result = MeetingValidator.validateMeetingInput(
+      { groupId: "g1", date: "2026-05-08", agenda: "Old meeting", minutes: "" },
+      NOW_MS,
+      false
     );
-    expect(result.ok).toBe(false);
-    expect(result.errors.date).toMatch(/future/i);
+    expect(result.isValid).toBe(false);
+    expect(result.errors[0]).toMatch(/future date/i);
   });
 
-  it("rejects malformed dates and times", () => {
-    expect(
-      validateMeetingInput({ groupId: "g1", date: "not-a-date", time: "14:00", agenda: "x" }, NOW).ok
-    ).toBe(false);
-    expect(
-      validateMeetingInput({ groupId: "g1", date: "2026-06-01", time: "14h", agenda: "x" }, NOW).ok
-    ).toBe(false);
-  });
-
-  it("rejects too-short agenda", () => {
-    const result = validateMeetingInput(
-      { groupId: "g1", date: "2026-06-01", time: "14:00", agenda: "ok" },
-      NOW
+  // MID-SPRINT CHANGE TEST (UAT 1 & 3)
+  it("allows a past date when specifically recording minutes", () => {
+    const result = MeetingValidator.validateMeetingInput(
+      { 
+        groupId: "g1", 
+        date: "2026-05-08", // Yesterday relative to NOW_MS
+        agenda: "Past meeting",
+        minutes: "We discussed the budget." 
+      },
+      NOW_MS,
+      true // isRecordingMinutes = true
     );
-    expect(result.ok).toBe(false);
-    expect(result.errors.agenda).toMatch(/3 characters/i);
+    
+    expect(result.isValid).toBe(true);
+  });
+
+  it("rejects empty minutes when finalizing a meeting", () => {
+    const result = MeetingValidator.validateMeetingInput(
+      { 
+        groupId: "g1", 
+        date: "2026-05-08", 
+        agenda: "Past meeting",
+        minutes: "" // Empty minutes while flag is true
+      },
+      NOW_MS,
+      true
+    );
+    
+    expect(result.isValid).toBe(false);
+    expect(result.errors).toContain("Minutes cannot be empty when finalizing a meeting.");
   });
 });

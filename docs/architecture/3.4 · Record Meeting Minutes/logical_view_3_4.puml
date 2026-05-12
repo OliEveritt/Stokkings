@@ -1,0 +1,24 @@
+@startuml logical_view_3_4
+package "Components" {
+    class MinutesForm <<Client Component>> {
+        - minutes: string
+        - isEditing: boolean
+        + handleSave()
+    }
+}
+
+package "Validators" {
+    class MeetingValidator {
+        {static} + validateMeetingInput(input: MeetingInput, now: number, isRecordingMinutes: boolean): ValidationResult
+    }
+    interface MeetingInput {
+        + groupId: string
+        + date: string
+        + agenda: string
+        + minutes: string
+    }
+}
+
+MinutesForm ..> MeetingValidator : uses
+MinutesForm ..> MeetingInput : constructs
+@enduml
