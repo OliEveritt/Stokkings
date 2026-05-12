@@ -16,6 +16,8 @@ import { db } from "@/lib/firebase";
 import { useFirebaseAuth } from "@/context/FirebaseAuthContext";
 import Link from "next/link";
 import ContributionForm from "@/components/forms/ContributionForm";
+import { toCSV } from "@/lib/utils/csv";
+import { downloadCSV, isoDate } from "@/lib/utils/download";
 
 interface Member {
   id: string;
@@ -67,6 +69,18 @@ function formatDate(value: Timestamp | string | null | undefined): string {
   return "—";
 }
 
+function toIsoDate(value: Timestamp | string | null | undefined): string {
+  if (!value) return "";
+  if (typeof value === "string") {
+    const d = new Date(value);
+    return isNaN(d.getTime()) ? "" : isoDate(d);
+  }
+  if (typeof (value as Timestamp).toDate === "function") {
+    return isoDate((value as Timestamp).toDate());
+  }
+  return "";
+}
+
 export default function GroupDashboardPage() {
   const { groupId } = useParams<{ groupId: string }>();
   const { user } = useFirebaseAuth();
@@ -77,6 +91,7 @@ export default function GroupDashboardPage() {
   const [loading, setLoading] = useState(true);
   const [isAdmin, setIsAdmin] = useState(false);
   const [isMember, setIsMember] = useState(false);
+  const [exportMenuOpen, setExportMenuOpen] = useState(false);
 
   useEffect(() => {
     if (!groupId || !user) return;
@@ -153,6 +168,59 @@ export default function GroupDashboardPage() {
   const groupName = group?.group_name || group?.name || "Group";
   const contributionAmount = group?.contribution_amount;
   const expectedTotalPerCycle = contributionAmount ? contributionAmount * members.length : null;
+  const avgPerMember = members.length > 0 ? contributions.total / members.length : null;
+
+  const exportSummary = () => {
+    const csv = toCSV(
+      [
+        {
+          name: groupName,
+          id: groupId,
+          memberCount: members.length,
+          contributionAmount: contributionAmount ?? null,
+          totalContributed: contributions.total,
+          paymentCount: contributions.count,
+          expectedPerCycle: expectedTotalPerCycle,
+          payoutFrequency: group?.payout_frequency ?? "",
+          payoutOrder: group?.payout_order ?? "",
+          avgPerMember,
+          createdBy: group?.created_by_name ?? "",
+          createdAt: toIsoDate(group?.created_at),
+        },
+      ],
+      [
+        { header: "Group Name", accessor: (r) => r.name },
+        { header: "Group ID", accessor: (r) => r.id },
+        { header: "Members", accessor: (r) => r.memberCount },
+        { header: "Contribution/Cycle (ZAR)", accessor: (r) => r.contributionAmount },
+        { header: "Total Contributed (ZAR)", accessor: (r) => r.totalContributed },
+        { header: "Payment Count", accessor: (r) => r.paymentCount },
+        { header: "Expected/Cycle (ZAR)", accessor: (r) => r.expectedPerCycle },
+        { header: "Payout Frequency", accessor: (r) => r.payoutFrequency },
+        { header: "Payout Order", accessor: (r) => r.payoutOrder },
+        { header: "Avg/Member (ZAR)", accessor: (r) => r.avgPerMember },
+        { header: "Created By", accessor: (r) => r.createdBy },
+        { header: "Created At", accessor: (r) => r.createdAt },
+      ]
+    );
+    downloadCSV(`group-summary-${groupId}-${isoDate()}.csv`, csv);
+    setExportMenuOpen(false);
+  };
+
+  const exportMembers = () => {
+    const csv = toCSV(
+      members,
+      [
+        { header: "Name/Email", accessor: (m) => m.displayName || m.email || m.userId },
+        { header: "Role", accessor: (m) => m.role },
+        { header: "Joined At", accessor: (m) => toIsoDate(m.joinedAt) },
+        { header: "User ID", accessor: (m) => m.userId },
+        { header: "Contributed (ZAR)", accessor: (m) => contributions.byMember[m.userId] ?? 0 },
+      ]
+    );
+    downloadCSV(`members-${groupId}-${isoDate()}.csv`, csv);
+    setExportMenuOpen(false);
+  };
 
   return (
     <div className="p-6 max-w-5xl mx-auto">
@@ -179,6 +247,49 @@ export default function GroupDashboardPage() {
           >
             Meetings
           </Link>
+          {isAdmin && (
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => setExportMenuOpen((o) => !o)}
+                className="inline-flex items-center gap-2 bg-white border border-gray-200 hover:border-emerald-500 hover:text-emerald-700 text-gray-700 font-semibold py-2 px-5 rounded-xl transition-all"
+                aria-haspopup="menu"
+                aria-expanded={exportMenuOpen}
+              >
+                Export CSV
+              </button>
+              {exportMenuOpen && (
+                <>
+                  <div
+                    className="fixed inset-0 z-10"
+                    onClick={() => setExportMenuOpen(false)}
+                    aria-hidden="true"
+                  />
+                  <div
+                    role="menu"
+                    className="absolute right-0 mt-2 w-56 bg-white border border-gray-200 rounded-xl shadow-lg z-20 overflow-hidden"
+                  >
+                    <button
+                      type="button"
+                      role="menuitem"
+                      onClick={exportSummary}
+                      className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-emerald-50 hover:text-emerald-700"
+                    >
+                      Group summary
+                    </button>
+                    <button
+                      type="button"
+                      role="menuitem"
+                      onClick={exportMembers}
+                      className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-emerald-50 hover:text-emerald-700"
+                    >
+                      Members
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
+          )}
           {isAdmin && (
             <Link
               href={`/groups/${groupId}/invite`}

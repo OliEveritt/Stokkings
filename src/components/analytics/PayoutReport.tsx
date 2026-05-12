@@ -1,8 +1,10 @@
 ﻿"use client";
 
 import { useEffect, useState } from "react";
-import { getPayoutReportData, PayoutReportData } from "@/services/analytics.service";
+import { getPayoutReportData, PayoutReportData, PayoutRecord, PayoutProjection } from "@/services/analytics.service";
 import PayoutTimelineChart from "./PayoutTimelineChart";
+import { toCSV } from "@/lib/utils/csv";
+import { downloadCSV, isoDate } from "@/lib/utils/download";
 
 interface PayoutReportProps {
   groupId: string;
@@ -60,6 +62,33 @@ export default function PayoutReport({ groupId }: PayoutReportProps) {
     return <div className="p-8 text-center text-gray-500">No payout data available</div>;
   }
 
+  const toIso = (s: string) => {
+    if (!s || s === "TBD") return "";
+    const d = new Date(s);
+    return isNaN(d.getTime()) ? "" : isoDate(d);
+  };
+
+  const exportPastPayouts = () => {
+    const csv = toCSV<PayoutRecord>(data.pastPayouts, [
+      { header: "Date", accessor: (r) => toIso(r.payoutDate) },
+      { header: "Member", accessor: (r) => r.memberName },
+      { header: "Amount (ZAR)", accessor: (r) => r.amount },
+      { header: "Status", accessor: (r) => r.status },
+    ]);
+    downloadCSV(`past-payouts-${groupId}-${isoDate()}.csv`, csv);
+  };
+
+  const exportUpcoming = () => {
+    const csv = toCSV<PayoutProjection>(data.upcomingProjections, [
+      { header: "Position", accessor: (r) => r.position },
+      { header: "Member", accessor: (r) => r.memberName },
+      { header: "Expected Date", accessor: (r) => toIso(r.expectedDate) },
+      { header: "Amount (ZAR)", accessor: (r) => r.amount },
+      { header: "Status", accessor: (r) => r.status },
+    ]);
+    downloadCSV(`upcoming-payouts-${groupId}-${isoDate()}.csv`, csv);
+  };
+
   return (
     <div className="space-y-8">
       {/* Summary Cards */}
@@ -86,9 +115,18 @@ export default function PayoutReport({ groupId }: PayoutReportProps) {
 
       {/* Past Payouts Table */}
       <div className="bg-white rounded-lg shadow overflow-hidden">
-        <div className="px-6 py-4 bg-gray-50 border-b border-gray-200">
-          <h2 className="text-lg font-bold text-gray-900">📋 Past Payouts</h2>
-          <p className="text-sm text-gray-500">Completed payouts with dates and amounts (detailed list)</p>
+        <div className="px-6 py-4 bg-gray-50 border-b border-gray-200 flex items-start justify-between gap-3">
+          <div>
+            <h2 className="text-lg font-bold text-gray-900">📋 Past Payouts</h2>
+            <p className="text-sm text-gray-500">Completed payouts with dates and amounts (detailed list)</p>
+          </div>
+          <button
+            type="button"
+            onClick={exportPastPayouts}
+            className="px-3 py-1.5 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 text-sm font-semibold whitespace-nowrap"
+          >
+            Export CSV
+          </button>
         </div>
         <div className="p-6">
           {!data.hasPastPayouts ? (
@@ -128,9 +166,18 @@ export default function PayoutReport({ groupId }: PayoutReportProps) {
 
       {/* Upcoming Projections Table */}
       <div className="bg-white rounded-lg shadow overflow-hidden">
-        <div className="px-6 py-4 bg-gray-50 border-b border-gray-200">
-          <h2 className="text-lg font-bold text-gray-900">📅 Upcoming Projected Payouts</h2>
-          <p className="text-sm text-gray-500">Future payouts based on current schedule (detailed list)</p>
+        <div className="px-6 py-4 bg-gray-50 border-b border-gray-200 flex items-start justify-between gap-3">
+          <div>
+            <h2 className="text-lg font-bold text-gray-900">📅 Upcoming Projected Payouts</h2>
+            <p className="text-sm text-gray-500">Future payouts based on current schedule (detailed list)</p>
+          </div>
+          <button
+            type="button"
+            onClick={exportUpcoming}
+            className="px-3 py-1.5 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 text-sm font-semibold whitespace-nowrap"
+          >
+            Export CSV
+          </button>
         </div>
         <div className="p-6">
           {data.upcomingProjections.length === 0 ? (
