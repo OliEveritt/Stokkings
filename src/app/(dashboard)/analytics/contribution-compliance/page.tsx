@@ -69,7 +69,7 @@ export default function ContributionCompliancePage() {
           <div>
             <h1 className="text-2xl font-semibold text-gray-900">Contribution Compliance</h1>
             <p className="mt-1 text-sm text-gray-500">
-              Track each member's payment compliance over time.
+              Track each member&apos;s payment compliance over time.
             </p>
           </div>
 
