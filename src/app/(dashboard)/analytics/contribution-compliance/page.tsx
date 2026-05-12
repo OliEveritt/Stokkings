@@ -23,7 +23,7 @@ export default function ContributionCompliancePage() {
     if (!groupLoading && activeGroup?.id && !selectedGroupId) {
       setSelectedGroupId(activeGroup.id);
     }
-  }, [activeGroup?.id, groupLoading]);
+  },  [activeGroup?.id, groupLoading, selectedGroupId]);
 
   // Fetch report whenever selected group changes
   useEffect(() => {

@@ -29,9 +29,11 @@ function canEditMinutes(topLevelRole: string, groupRole: string | null): boolean
  */
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
+
     const authHeader = request.headers.get("authorization");
     if (!authHeader?.startsWith("Bearer ")) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -41,7 +43,7 @@ export async function GET(
     await adminAuth.verifyIdToken(token);
 
     const db = getAdminDb();
-    const meetingSnap = await db.doc(`meetings/${params.id}`).get();
+    const meetingSnap = await db.doc(`meetings/${id}`).get();
 
     if (!meetingSnap.exists) {
       return NextResponse.json({ error: "Meeting not found" }, { status: 404 });
@@ -63,9 +65,11 @@ export async function GET(
  */
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
+
     const authHeader = request.headers.get("authorization");
     if (!authHeader?.startsWith("Bearer ")) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -84,7 +88,6 @@ export async function PUT(
       return NextResponse.json({ error: "groupId is required" }, { status: 400 });
     }
 
-    // Role check — same pattern as /api/meetings/route.ts
     const { topLevelRole, groupRole } = await getCallerRole(decoded.uid, groupId);
     if (!canEditMinutes(topLevelRole, groupRole)) {
       return NextResponse.json(
@@ -94,7 +97,7 @@ export async function PUT(
     }
 
     const db = getAdminDb();
-    const meetingRef = db.doc(`meetings/${params.id}`);
+    const meetingRef = db.doc(`meetings/${id}`);
     const meetingSnap = await meetingRef.get();
 
     if (!meetingSnap.exists) {
