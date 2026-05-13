@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 
 describe('Payment Flow - UAT Tests', () => {
   describe('UAT 1: Successful Payment', () => {

@@ -8,7 +8,6 @@ export default defineConfig({
     environment: 'jsdom',
     globals: true,
     setupFiles: ['./tests/setup.ts'],
-    // Refine to only include your 64 passing tests
     include: [
       'tests/unit/**/*.test.ts',
       'tests/integration/invite-validation.test.ts',

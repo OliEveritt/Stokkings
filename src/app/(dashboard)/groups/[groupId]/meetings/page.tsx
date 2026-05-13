@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+
 import { useParams } from "next/navigation";
 import {
   collection,
@@ -89,6 +90,11 @@ export default function GroupMeetingsPage() {
       </Link>
 
       <h1 className="text-3xl font-black text-gray-900 mb-1">Meetings</h1>
+      {/* DEBUG - remove after testing */}
+    <p className="text-xs text-gray-400">
+    Role: {user?.role} | Group role: {groupRole ?? "none"}
+    </p>
+
       <p className="text-sm text-gray-500 mb-8">
         Upcoming and past meetings for this group.
       </p>
@@ -142,7 +148,7 @@ function MeetingCard({ meeting }: { meeting: Meeting }) {
     day: "numeric",
   });
   return (
-    <div className="bg-white border border-gray-100 rounded-2xl p-5 shadow-sm">
+    <Link href={`/meetings/${meeting.id}`} className="block bg-white border border-gray-100 rounded-2xl p-5 shadow-sm hover:border-emerald-300 transition-colors">
       <div className="flex items-start justify-between gap-4">
         <div className="flex-1">
           <div className="flex items-center gap-3 text-sm font-semibold text-gray-700">
@@ -169,6 +175,7 @@ function MeetingCard({ meeting }: { meeting: Meeting }) {
       {meeting.createdByName && (
         <p className="text-xs text-gray-400 mt-3">Scheduled by {meeting.createdByName}</p>
       )}
-    </div>
+    
+    </Link>
   );
 }

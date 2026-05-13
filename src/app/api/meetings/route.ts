@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { FieldValue } from "firebase-admin/firestore";
 import { adminAuth, getAdminDb } from "@/lib/firebase-admin";
-import { combineDateTime, validateMeetingInput } from "@/validators/meeting.validator";
+// FIXED: Import the Class and Interface to match UML Logical View
+import { MeetingValidator, MeetingInput } from "@/validators/meeting.validator";
 
 async function getCallerRole(uid: string, groupId: string) {
   const db = getAdminDb();
@@ -26,20 +27,19 @@ export async function POST(req: NextRequest) {
     const uid = decoded.uid;
 
     const body = await req.json();
-    const validation = validateMeetingInput(body);
-    if (!validation.ok) {
+
+    // FIXED: Use static class method. Mid-sprint change: isRecordingMinutes is FALSE here 
+    // because this is the scheduling endpoint.
+    const validation = MeetingValidator.validateMeetingInput(body, Date.now(), false);
+
+    if (!validation.isValid) {
       return NextResponse.json(
         { error: "Validation failed", fieldErrors: validation.errors },
         { status: 400 }
       );
     }
 
-    const { groupId, date, time, agenda } = body as Required<{
-      groupId: string;
-      date: string;
-      time: string;
-      agenda: string;
-    }>;
+    const { groupId, date, time, agenda } = body as MeetingInput & { time: string };
 
     const { topLevelRole, groupRole } = await getCallerRole(uid, groupId);
     const allowed =
@@ -60,7 +60,9 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Group not found" }, { status: 404 });
     }
 
-    const scheduledAt = combineDateTime(date, time);
+    // FIXED: Standardize Date/Time combination logic since combineDateTime was refactored
+    const scheduledAt = new Date(`${date}T${time}:00`);
+    
     const userSnap = await db.doc(`users/${uid}`).get();
     const createdByName =
       (userSnap.data()?.name as string) || (userSnap.data()?.email as string) || "Unknown";

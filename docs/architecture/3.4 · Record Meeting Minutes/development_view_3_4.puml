@@ -1,0 +1,22 @@
+@startuml development_view_3_4
+package "src" {
+    package "app" {
+        package "(dashboard)" {
+            component "MeetingDetailPage"
+        }
+    }
+    package "components" {
+        component "MinutesForm"
+    }
+    package "validators" {
+        component "MeetingValidator"
+    }
+    package "lib" {
+        component "Firebase"
+    }
+}
+
+"MeetingDetailPage" --> "MinutesForm"
+"MinutesForm" --> "MeetingValidator"
+"MinutesForm" --> "Firebase"
+@enduml

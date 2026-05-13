@@ -1,0 +1,21 @@
+@startuml process_view_3_4
+actor Treasurer
+participant "MinutesForm" as UI
+participant "MeetingValidator" as Val
+participant "Firebase/Firestore" as DB
+
+Treasurer -> UI: Enter Minutes & Click Save
+UI -> UI: Construct MeetingInput
+UI -> Val: validateMeetingInput(input, now, isRecordingMinutes=true)
+activate Val
+Val -> Val: Check if isRecordingMinutes
+note right: Mid-Sprint Change:\nBypass future date check
+Val --> UI: { isValid: true }
+deactivate Val
+
+UI -> DB: updateDoc(meetingRef, { minutes })
+activate DB
+DB --> UI: Success
+deactivate DB
+UI -> Treasurer: Show Success Toast
+@enduml
