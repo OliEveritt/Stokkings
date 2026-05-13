@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import { FirebaseAuthProvider } from "@/context/FirebaseAuthContext";
+import { GroupProvider } from "@/context/GroupContext";
 import "./globals.css";
 
 const inter = Inter({ subsets: ["latin"] });
@@ -19,8 +20,11 @@ export default function RootLayout({
     <html lang="en">
       <body className={inter.className}>
         <FirebaseAuthProvider>
+          <GroupProvider>    
           {children}
+          </GroupProvider>
         </FirebaseAuthProvider>
+            
       </body>
     </html>
   );

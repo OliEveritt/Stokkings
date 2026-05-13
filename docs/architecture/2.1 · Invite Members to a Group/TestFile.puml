@@ -1,0 +1,47 @@
+@startuml
+package "Domain Models" {
+    class User {
+        +UUID id
+        +String externalProviderId
+        +Enum role (Admin, Treasurer, Member)
+        +String email
+    }
+
+    class Group {
+        +String name
+        +Decimal contributionAmount
+        +String payoutOrder
+        +String meetingFrequency
+    }
+
+    class Meeting {
+        +DateTime dateTime
+        +String agenda
+        +String minutes
+    }
+
+    class Contribution {
+        +Decimal amount
+        +Enum status
+        +DateTime paymentDate
+    }
+
+    class InterestRate {
+        +Decimal primeRate
+        +DateTime lastUpdated
+    }
+}
+
+package "Services" {
+    class ProjectionEngine {
+        +calculateGrowth(contributions, rate, months)
+        +generateProjectionChart()
+    }
+}
+
+User "1" *-- "1" Group : member of
+Group "1" o-- "0..*" Meeting
+Group "1" o-- "0..*" Contribution
+ProjectionEngine ..> Contribution : uses
+ProjectionEngine ..> InterestRate : uses
+@enduml

@@ -1,5 +1,4 @@
-@startuml
-node "Client Browser" {
+@startuml node "Client Browser" {
     component "Next.js App (Local)" as App
 }
 
