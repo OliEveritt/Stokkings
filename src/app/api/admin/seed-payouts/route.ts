@@ -21,7 +21,10 @@ export async function POST(req: NextRequest) {
     }
 
     const membersSnapshot = await getDocs(collection(db, "groups", groupId, "group_members"));
-    const members = membersSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    const members = membersSnapshot.docs.map(doc => ({
+      id: doc.id,
+      ...(doc.data() as { name?: string }),
+    }));
 
     if (members.length === 0) {
       return NextResponse.json({ error: "No members found" }, { status: 404 });
