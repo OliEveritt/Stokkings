@@ -1,6 +1,6 @@
 import type { Role } from "./enums";
 export type { Role } from "./enums";
-import { ComponentType, SVGProps } from "react";
+import type { LucideIcon } from "lucide-react";
 
 
 export interface User {
@@ -27,7 +27,7 @@ export interface Rates {
 export interface NavItem {
   id: string;
   label: string;
-  icon: ComponentType<SVGProps<SVGSVGElement>>; 
+  icon: LucideIcon;
   roles: Role[];
   path: string;
 }
