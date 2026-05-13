@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { adminAuth, getAdminDb } from "@/lib/firebase-admin";
+import { notificationService } from "@/services/notification.service";
 
 /**
  * Resolves the caller's role for a given group.
@@ -107,6 +108,13 @@ export async function PUT(
     await meetingRef.update({
       minutes,
       updatedAt: new Date().toISOString(),
+    });
+
+    await notificationService.notifyMeetingUpdated({
+      groupId,
+      meetingId: id,
+      date : meetingSnap.data()?.date || "",
+      time : meetingSnap.data()?.time || "",
     });
 
     return NextResponse.json({ success: true, minutes });

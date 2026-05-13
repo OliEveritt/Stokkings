@@ -1,0 +1,128 @@
+@startuml LV_LogicalView
+title Logical View — Domain Model
+
+skinparam classAttributeIconSize 0
+
+class User {
+  +uid: String
+  +name: String
+  +surname: String
+  +email: String
+  +phone: String
+  +role: Role
+  +createdAt: Timestamp
+}
+
+enum Role {
+  MEMBER
+  TREASURER
+  ADMIN
+}
+
+class Group {
+  +id: String
+  +name: String
+  +contributionAmount: Number
+  +payoutOrder: String[]
+  +meetingFrequency: Frequency
+  +createdBy: String
+  +createdAt: Timestamp
+}
+
+class Invitation {
+  +id: String
+  +groupId: String
+  +phoneNumber: String
+  +ussdCode: String
+  +status: InviteStatus
+  +expiresAt: Timestamp
+  +createdAt: Timestamp
+}
+
+enum InviteStatus {
+  PENDING
+  ACCEPTED
+  EXPIRED
+}
+
+class Contribution {
+  +id: String
+  +groupId: String
+  +memberId: String
+  +amount: Number
+  +dueDate: Date
+  +status: ContribStatus
+  +confirmedBy: String
+  +confirmedAt: Timestamp
+  +stripePaymentId: String
+}
+
+enum ContribStatus {
+  PENDING
+  CONFIRMED
+  MISSED
+}
+
+class Payment {
+  +id: String
+  +contributionId: String
+  +stripeSessionId: String
+  +amount: Number
+  +currency: String
+  +status: PaymentStatus
+  +createdAt: Timestamp
+}
+
+enum PaymentStatus {
+  INITIATED
+  SUCCEEDED
+  FAILED
+  CANCELLED
+}
+
+class Meeting {
+  +id: String
+  +groupId: String
+  +scheduledAt: Timestamp
+  +agenda: String
+  +minutes: String
+  +createdBy: String
+}
+
+class InterestRate {
+  +id: String
+  +repoRate: Number
+  +primeLendingRate: Number
+  +fetchedAt: Timestamp
+  +source: String
+}
+
+class Payout {
+  +id: String
+  +groupId: String
+  +memberId: String
+  +amount: Number
+  +payoutDate: Date
+  +status: PayoutStatus
+}
+
+enum PayoutStatus {
+  PROJECTED
+  COMPLETED
+}
+
+' Relationships
+User         "1"    --  "0..*" Group        : administers >
+Group        "1"    *-- "0..*" Invitation   : has >
+Group        "1"    *-- "0..*" Contribution : tracks >
+Group        "1"    *-- "0..*" Meeting      : schedules >
+Group        "1"    *-- "0..*" Payout       : distributes >
+Contribution "1"    *-- "0..1" Payment      : paid via >
+User         "1"    --  "0..*" Contribution : makes >
+User         *-- Role
+Invitation   *-- InviteStatus
+Contribution *-- ContribStatus
+Payment      *-- PaymentStatus
+Payout       *-- PayoutStatus
+
+@enduml

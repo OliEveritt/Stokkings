@@ -1,0 +1,44 @@
+@startuml PhV_PhysicalView
+title Physical View — Deployment Architecture
+
+skinparam nodeStyle rectangle
+
+node "User Device\n(Browser / Mobile)" as Client {
+  artifact "Next.js SPA\n(React)" as SPA
+}
+
+node "Vercel\n(CDN + Edge)" as Vercel {
+  artifact "Next.js Server\n(SSR + API Routes)" as SSR
+  artifact "Static Assets\n(CSS, JS, Images)"   as Assets
+}
+
+node "Firebase Platform\n(Google Cloud)" as Firebase {
+  artifact "Firebase Auth\n(OAuth / JWT)"    as FBAuthNode
+  artifact "Firestore\n(NoSQL Database)"     as FSNode
+  artifact "Firebase Storage\n(optional)"    as FStorageNode
+}
+
+node "Stripe\n(PCI-DSS Cloud)" as StripeNode {
+  artifact "Checkout Sessions API" as StripeCheckout
+  artifact "Webhook Endpoint"      as StripeWebhook
+}
+
+node "Africa's Talking\n(USSD Gateway)" as ATNode {
+  artifact "USSD Session Manager" as USSDMgr
+  artifact "USSD Callback HTTPS"  as USSDCb
+}
+
+node "SARB\n(External API)" as SARBNode {
+  artifact "CurrentMarketRates\nEndpoint" as SARBEndpoint
+}
+
+' Connections
+Client        --> Vercel      : HTTPS
+Vercel        --> Firebase    : Firebase Admin SDK\n(server-side)
+Vercel        --> StripeNode  : Stripe SDK (HTTPS)
+Vercel        --> ATNode      : Africa's Talking SDK\n(HTTPS)
+Vercel        --> SARBNode    : REST (HTTPS)
+StripeWebhook --> Vercel      : POST /api/payments/webhook
+USSDCb        --> Vercel      : POST /api/ussd/callback
+
+@enduml

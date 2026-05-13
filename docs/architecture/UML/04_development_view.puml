@@ -1,0 +1,105 @@
+@startuml DV_DevelopmentView
+title Development View — Component & Package Structure
+
+skinparam packageStyle rectangle
+skinparam componentStyle rectangle
+
+package "Frontend (Next.js / React)" {
+  [Auth Pages\n(sign-in, sign-up)] as AuthUI
+  [Dashboard]                       as DashUI
+  [Group Management UI]             as GroupUI
+  [Contributions UI]                as ContribUI
+  [Meetings UI]                     as MeetUI
+  [Analytics UI\n(Recharts)]        as AnalyticsUI
+  [Profile UI]                      as ProfileUI
+}
+
+package "API Routes (Next.js /api)" {
+  [auth router]                      as AuthAPI
+  [groups router]                    as GroupAPI
+  [invitations router\n(USSD)]       as InviteAPI
+  [contributions router]             as ContribAPI
+  [payments router\n(Stripe webhook)] as PayAPI
+  [meetings router]                  as MeetAPI
+  [analytics router]                 as AnalyticsAPI
+  [rates router\n(SARB)]             as RatesAPI
+  [ussd callback router]             as UssdAPI
+}
+
+package "Service Layer" {
+  [AuthService]                as AuthSvc
+  [GroupService]               as GroupSvc
+  [InvitationService\n(USSD)]  as InvSvc
+  [ContributionService]        as ContribSvc
+  [PaymentService\n(Stripe)]   as PaySvc
+  [MeetingService]             as MeetSvc
+  [AnalyticsService]           as AnalSvc
+  [RateService\n(SARB+cache)]  as RateSvc
+  [ProjectionService]          as ProjSvc
+  [NotificationService]        as NotifSvc
+}
+
+package "Repository Layer" {
+  [UserRepository]         as UserRepo
+  [GroupRepository]        as GroupRepo
+  [ContributionRepository] as ContribRepo
+  [PaymentRepository]      as PayRepo
+  [MeetingRepository]      as MeetRepo
+  [AnalyticsRepository]    as AnalRepo
+}
+
+package "External Services" {
+  [Firebase Auth]              as FBAuth
+  [Firebase Firestore]         as FBStore
+  [Stripe API]                 as StripeExt
+  [Africa's Talking\nUSSD API] as ATExt
+  [SARB API]                   as SARBExt
+}
+
+' UI to API
+AuthUI     --> AuthAPI
+GroupUI    --> GroupAPI
+GroupUI    --> InviteAPI
+ContribUI  --> ContribAPI
+ContribUI  --> PayAPI
+MeetUI     --> MeetAPI
+AnalyticsUI --> AnalyticsAPI
+DashUI     --> RatesAPI
+ProfileUI  --> AuthAPI
+
+' API to Services
+AuthAPI     --> AuthSvc
+GroupAPI    --> GroupSvc
+InviteAPI   --> InvSvc
+ContribAPI  --> ContribSvc
+PayAPI      --> PaySvc
+MeetAPI     --> MeetSvc
+AnalyticsAPI --> AnalSvc
+RatesAPI    --> RateSvc
+UssdAPI     --> InvSvc
+
+' Services to Repositories
+GroupSvc   --> GroupRepo
+InvSvc     --> GroupRepo
+ContribSvc --> ContribRepo
+PaySvc     --> PayRepo
+MeetSvc    --> MeetRepo
+AnalSvc    --> AnalRepo
+ProjSvc    --> ContribRepo
+RateSvc    --> UserRepo
+
+' Repositories to Firebase
+UserRepo   --> FBStore
+GroupRepo  --> FBStore
+ContribRepo --> FBStore
+PayRepo    --> FBStore
+MeetRepo   --> FBStore
+AnalRepo   --> FBStore
+
+' Services to External
+AuthSvc --> FBAuth
+PaySvc  --> StripeExt
+InvSvc  --> ATExt
+RateSvc --> SARBExt
+
+@enduml

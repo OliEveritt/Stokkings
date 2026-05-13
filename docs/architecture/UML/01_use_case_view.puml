@@ -1,0 +1,82 @@
+@startuml UC_UseCaseView
+title Use Case View — Stokvel Application
+
+left to right direction
+skinparam actorStyle awesome
+skinparam packageStyle rectangle
+
+actor "Member"                   as M
+actor "Treasurer"                as T
+actor "Admin"                    as A
+actor "Firebase\nAuth"           as FB  #LightBlue
+actor "Stripe"                   as ST  #LightGreen
+actor "Africa's Talking\n(USSD)" as AT  #LightYellow
+actor "SARB API"                 as SA  #LightGray
+
+rectangle "Authentication" {
+  usecase "UC-01 Register / Sign In\n(OAuth via Firebase)" as UC01
+  usecase "UC-02 Sign Out"                                  as UC02
+  usecase "UC-03 Edit Profile"                              as UC03
+}
+
+rectangle "Group Management" {
+  usecase "UC-04 Create Stokvel Group"   as UC04
+  usecase "UC-05 Invite Member via USSD" as UC05
+  usecase "UC-06 Accept USSD Invitation" as UC06
+}
+
+rectangle "Contributions" {
+  usecase "UC-07 View My Contributions"        as UC07
+  usecase "UC-08 Make Online Payment\n(Stripe)" as UC08
+  usecase "UC-09 Confirm Payment"               as UC09
+  usecase "UC-10 Flag Missed Contribution"      as UC10
+}
+
+rectangle "Meetings" {
+  usecase "UC-11 Schedule Meeting"      as UC11
+  usecase "UC-12 Record Meeting Minutes" as UC12
+  usecase "UC-13 View Meeting Details"   as UC13
+}
+
+rectangle "Analytics & Reporting" {
+  usecase "UC-14 View Contribution\nCompliance Report" as UC14
+  usecase "UC-15 View Payout History\n& Projections"   as UC15
+  usecase "UC-16 Export Report as CSV"                 as UC16
+  usecase "UC-17 View Savings Projections"             as UC17
+  usecase "UC-18 View SA Interest Rates\n(SARB)"       as UC18
+}
+
+' Member associations
+M --> UC01
+M --> UC02
+M --> UC03
+M --> UC06
+M --> UC07
+M --> UC08
+M --> UC13
+M --> UC17
+M --> UC18
+
+' Treasurer associations
+T --> UC03
+T --> UC09
+T --> UC10
+T --> UC11
+T --> UC12
+
+' Admin associations
+A --> UC03
+A --> UC04
+A --> UC05
+A --> UC14
+A --> UC15
+A --> UC16
+
+' External system associations
+UC01 --> FB
+UC08 --> ST
+UC05 --> AT
+UC06 --> AT
+UC18 --> SA
+
+@enduml
