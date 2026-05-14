@@ -1,9 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react"; // Added useMemo
 import { CalendarDays, Clock, FileText, Loader2 } from "lucide-react";
 import { auth } from "@/lib/firebase";
-// Updated: Import the Class and Input Interface
 import { MeetingValidator, MeetingInput } from "@/validators/meeting.validator";
 
 interface ScheduleMeetingFormProps {
@@ -16,9 +15,22 @@ export default function ScheduleMeetingForm({ groupId, onScheduled }: ScheduleMe
   const [time, setTime] = useState("");
   const [agenda, setAgenda] = useState("");
   const [loading, setLoading] = useState(false);
-  const [errors, setErrors] = useState<string[]>([]); // Refined for ValidationResult
+  const [errors, setErrors] = useState<string[]>([]);
   const [serverError, setServerError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+
+  // Generate time slots: 00:00, 00:30 ... 23:30
+  const timeSlots = useMemo(() => {
+    const slots = [];
+    for (let hour = 0; hour < 24; hour++) {
+      for (let min = 0; min < 60; min += 30) {
+        const h = hour.toString().padStart(2, "0");
+        const m = min.toString().padStart(2, "0");
+        slots.push(`${h}:${m}`);
+      }
+    }
+    return slots;
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -26,16 +38,13 @@ export default function ScheduleMeetingForm({ groupId, onScheduled }: ScheduleMe
     setSuccess(null);
     setErrors([]);
 
-    // 1. Construct input object matching the UML Interface
     const input: MeetingInput = {
       groupId,
       date,
       agenda,
-      minutes: "", // Not recorded during initial scheduling
+      minutes: "", 
     };
 
-    // 2. Implementation of Mid-Sprint Change: 
-    // isRecordingMinutes is FALSE here, enforcing the "future date only" rule.
     const validation = MeetingValidator.validateMeetingInput(input, Date.now(), false);
 
     if (!validation.isValid) {
@@ -90,27 +99,34 @@ export default function ScheduleMeetingForm({ groupId, onScheduled }: ScheduleMe
         <div className="flex-1">
           <label className="text-[10px] font-bold text-gray-400 ml-1 uppercase tracking-wider">Date</label>
           <div className="relative mt-1">
-            <CalendarDays className="absolute left-3 top-3 text-gray-300" size={16} />
+            <CalendarDays className="absolute left-3 top-3 text-gray-300 pointer-events-none" size={16} />
             <input
               type="date"
               value={date}
               onChange={(e) => setDate(e.target.value)}
-              className="w-full pl-10 pr-3 py-2 rounded-lg bg-gray-50 border border-transparent focus:border-emerald-500 outline-none text-sm"
+              className="w-full pl-10 pr-3 py-2 rounded-lg bg-gray-50 border border-transparent focus:border-emerald-500 outline-none text-sm appearance-none"
               required
             />
           </div>
         </div>
+
         <div className="flex-1">
           <label className="text-[10px] font-bold text-gray-400 ml-1 uppercase tracking-wider">Time</label>
           <div className="relative mt-1">
-            <Clock className="absolute left-3 top-3 text-gray-300" size={16} />
-            <input
-              type="time"
+            <Clock className="absolute left-3 top-3 text-gray-300 pointer-events-none" size={16} />
+            <select
               value={time}
               onChange={(e) => setTime(e.target.value)}
-              className="w-full pl-10 pr-3 py-2 rounded-lg bg-gray-50 border border-transparent focus:border-emerald-500 outline-none text-sm"
+              className="w-full pl-10 pr-3 py-2 rounded-lg bg-gray-50 border border-transparent focus:border-emerald-500 outline-none text-sm appearance-none"
               required
-            />
+            >
+              <option value="" disabled>Select Time</option>
+              {timeSlots.map((t) => (
+                <option key={t} value={t}>
+                  {t}
+                </option>
+              ))}
+            </select>
           </div>
         </div>
       </div>
@@ -118,7 +134,7 @@ export default function ScheduleMeetingForm({ groupId, onScheduled }: ScheduleMe
       <div>
         <label className="text-[10px] font-bold text-gray-400 ml-1 uppercase tracking-wider">Agenda</label>
         <div className="relative mt-1">
-          <FileText className="absolute left-3 top-3 text-gray-300" size={16} />
+          <FileText className="absolute left-3 top-3 text-gray-300 pointer-events-none" size={16} />
           <textarea
             value={agenda}
             onChange={(e) => setAgenda(e.target.value)}
@@ -130,7 +146,6 @@ export default function ScheduleMeetingForm({ groupId, onScheduled }: ScheduleMe
         </div>
       </div>
 
-      {/* Validation Errors Display */}
       {errors.length > 0 && (
         <div className="p-3 bg-red-50 text-red-700 rounded-xl text-xs space-y-1">
           {errors.map((err, i) => <p key={i}>• {err}</p>)}
