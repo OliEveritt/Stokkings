@@ -3,12 +3,16 @@ import { getAdminDb } from "@/lib/firebase-admin";
 
 export class NotificationService {
   /**
-   * Fetches all member IDs for a group from group_members subcollection.
+   * Fetches all member IDs from the group's members array.
+   * Uses root-level members array since group_members subcollection
+   * may not contain all members.
    */
   async getGroupMemberIds(groupId: string): Promise<string[]> {
     const db = getAdminDb();
-    const snap = await db.collection(`groups/${groupId}/group_members`).get();
-    return snap.docs.map((d) => d.id);
+    const groupSnap = await db.doc(`groups/${groupId}`).get();
+    if (!groupSnap.exists) return [];
+    const members = groupSnap.data()?.members as string[] ?? [];
+    return members;
   }
 
   /**

@@ -10,6 +10,7 @@ export interface NotificationRecord {
   groupId: string;
   read: boolean;
   createdAt: FirebaseFirestore.Timestamp;
+   expiresAt?: string;
 }
 
 export const notificationRepository = {
@@ -23,6 +24,10 @@ export const notificationRepository = {
     const db = getAdminDb();
     const batch = db.batch();
 
+    // Notifications expire after 7 days
+    const expiresAt = new Date();
+  expiresAt.setDate(expiresAt.getDate() + 7);
+
     for (const userId of params.memberIds) {
       const ref = db.collection("notifications").doc();
       batch.set(ref, {
@@ -33,6 +38,7 @@ export const notificationRepository = {
         groupId: params.groupId,
         read: false,
         createdAt: FieldValue.serverTimestamp(),
+        expiresAt: expiresAt.toISOString(),
       });
     }
 
@@ -48,7 +54,9 @@ export const notificationRepository = {
       .limit(50)
       .get();
 
-    return snap.docs.map((d) => ({ id: d.id, ...d.data() } as NotificationRecord));
+    const now = new Date().toISOString();
+    return snap.docs.map((d) => ({ id: d.id, ...d.data() } as NotificationRecord))
+      .filter((n) => !n.expiresAt || n.expiresAt > now);
   },
 
   async markAsRead(notificationId: string): Promise<void> {

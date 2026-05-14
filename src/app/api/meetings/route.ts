@@ -3,6 +3,7 @@ import { FieldValue } from "firebase-admin/firestore";
 import { adminAuth, getAdminDb } from "@/lib/firebase-admin";
 // FIXED: Import the Class and Interface to match UML Logical View
 import { MeetingValidator, MeetingInput } from "@/validators/meeting.validator";
+import { notificationService } from "@/services/notification.service";
 
 async function getCallerRole(uid: string, groupId: string) {
   const db = getAdminDb();
@@ -81,7 +82,23 @@ export async function POST(req: NextRequest) {
       createdAt: FieldValue.serverTimestamp(),
     });
 
+  // DEBUG - remove after fixing
+    console.log("[meetings POST] meeting created:", ref.id, "groupId:", groupId);
+    try {
+      await notificationService.notifyMeetingScheduled({
+        groupId,
+        meetingId: ref.id,
+        date,
+        time,
+        agenda: agenda.trim(),
+      });
+      console.log("[meetings POST] notifications sent");
+    } catch (notifErr) {
+      console.error("[meetings POST] notification error:", notifErr);
+    }
+
     return NextResponse.json({ id: ref.id });
+
   } catch (err) {
     console.error("[meetings POST] error:", err);
     return NextResponse.json({ error: "Failed to schedule meeting" }, { status: 500 });
