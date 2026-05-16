@@ -1,16 +1,17 @@
 "use server";
 
-import { auth, db } from "@/lib/firebase";
+import { db } from "@/lib/firebase-admin"; // Use a separate admin config for server
 import { doc, getDoc } from "firebase/firestore";
 
-export async function getActiveMembership(_requestedGroupId?: number) {
-  // For now, return mock data until we migrate the data
-  // This keeps the dashboard working
-  const currentUser = auth.currentUser;
-  if (!currentUser) return null;
+// Pass the UID from the client side call
+export async function getActiveMembership(uid: string) {
+  if (!uid) return null;
 
   try {
-    const userDoc = await getDoc(doc(db, 'users', currentUser.uid));
+    // Note: On the server, you'd typically use firebase-admin
+    // If you are using the client SDK in a "use server" file, 
+    // it will often fail in production environments.
+    const userDoc = await getDoc(doc(db, 'users', uid));
     const userData = userDoc.data();
     
     if (!userData) return null;
@@ -23,22 +24,8 @@ export async function getActiveMembership(_requestedGroupId?: number) {
       group_id: 1,
       role_name: userData.role || 'Member'
     };
-  } catch {
+  } catch (error) {
+    console.error("Action Error:", error);
     return null;
   }
-}
-
-export async function getAllUserMandates() {
-  // Return empty array for now
-  return [];
-}
-
-export async function getDashboardStats(groupId: string | number) {
-  // Return mock stats
-  return {
-    totalContributions: 0,
-    memberCount: 1,
-    nextPayout: null,
-    complianceRate: 0
-  };
 }
